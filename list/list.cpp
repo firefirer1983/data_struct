@@ -12,70 +12,78 @@ class List
 public:
   List()  : prev_(nullptr), next_(nullptr) {};
   
-  ~List() : prev_(nullptr), next_(nullptr) {};
+  ~List() {
+    if(prev_){
+      prev_->next_ = next_;
+    }
+    if(next_){
+      next_->prev_ = prev_;
+    }
+    prev_ = nullptr;
+    next_ = nullptr;
+  };
   
   void Append(List *node)  {
-  	if(this->next_)
+  	if(this->next_) {
   	  this->next_->prev_ = node;
-	node->next_ = this->next_;
+	  node->next_ = this->next_;
+	}
 	node->prev_ = this;
 	this->next_ = node;
   }
   
   void Prepend(List *node) {
-    if(this->prev_)
+    if(this->prev_) {
 	  this->prev_->next_ = node;
-    node->prev_ = this->prev_;
+      node->prev_ = this->prev_;
+    }
     node->next_ = this;
     this->prev_ = node;
   }
-
-  bool Remove(List *node) {
-    // this node is the node need to be removed
-    if(this == node) {
-	  if(this->prev_) {
-	  	this->prev_->next_ = this->next_;
-	  }
-	  if(this->next_) {
-	  	this->next_->prev_ = this->prev_;
-	  }
+  
+  List *GetTail() {
+    List *tail = this;
+    while(tail->next_) {
+      tail = tail->next_;
     }
+    return tail;
+  }
 
-	// search backward
-    List *search_node = this->prev_;
-    while(search_node) {
-	  if(search_node == node) {
-		if(node->prev_)
-	  	  node->prev_->next_ = node->next_;
-		node->next_->prev_ = node->prev_;
-		delete node;
-		return true;
-	  }
-	  search_node = search_node->prev_;
-	  if(search_node == nullptr) {
-	  	break;
-	  }
-	}
+  List *GetHead() {
+    List *head = this;
+    while(head->prev_) {
+      head = head->prev_;
+    }
+    return head;
+  }
 
-	// search forward
-	search_node = this->next_;
-	while(search_node) {
-	  if(search_node == node) {
-	  	if(node->next_) {
-		  node->next_->prev_ = node->prev_;
-	  	}
-		node->prev_->next_ = node->prev_;
-		delete node;
-		return true;
-	  }
-	  search_node = search_node->next_;
-	  if(search_node == nullptr) {
-	  	break;
-	  }
-	}
+  int CountForward() {
+    int length = 0;
+    List *node = this->next_;
+    while(node) {
+      length ++;
+      node = node->next_;
+    }
+    return length;
   }
   
-private:
+  int CountBackward() {
+    int length = 0;
+    List *node = this->prev_;
+    while(node) {
+      length ++;
+      node = node->prev_;
+    }
+    return length;
+  }
+
+  bool CheckComplete() {
+    int forward_count = this->GetHead()->CountForward();
+    int backward_count = this->GetTail()->CountBackward();
+    cout << "forward: " << forward_count << " vs " << "backword: " << backward_count << endl;
+    return (forward_count == backward_count);
+  }
+  
   List *prev_;
   List *next_;
 };
@@ -90,52 +98,73 @@ protected:
   
   virtual void TearDown(){
     List *node = list_head_->next_;
-	if(node == nullptr) {
-	  delete list_head_;
-	  return;
-	}
-	
+    int delete_node_num = 0;
 	while(node){
-      delete node->prev_;
-      node->prev_ = nullptr;
-      node = node->next_;
-	  if(node == nullptr) {
-	  	delete node->prev_;
-		break;
-	  }
+	  List *tmp = node->next_;
+	  delete node;
+	  delete_node_num ++;
+	  node = tmp;
 	}
+	cout << "delete " << delete_node_num << " nodes in TearDown!" << endl;
   }
 };
 
-TEST_F(Stack_GTest, StackCreate_GTest){
-  EXPECT_EQ(kstack_test_size_, stack_->GetStackMaxSize());
-  int elem = 100;
-  EXPECT_TRUE(stack_->Push(elem));
-  EXPECT_EQ(elem, stack_->Pop());
-}
-
-TEST_F(Stack_GTest, StackPushPopPeek_GTest){
-  int elem = 100;
-  EXPECT_TRUE(stack_->Push(elem));
-  EXPECT_EQ(elem, stack_->Pop());
-  EXPECT_EQ(0, stack_->Peek(0));
-  EXPECT_TRUE(stack_->Push(elem));
-  cout << "peek res: " << stack_->Peek(0) << endl;
-  EXPECT_EQ(elem, stack_->Peek(0));
-  EXPECT_EQ(elem, stack_->Peek(0));
-}
-
-TEST_F(Stack_GTest, StackPushOverflow_GTest){
-  int i = 0;
-  for(i = 1; i <= stack_->GetStackMaxSize(); i ++) {
-	  EXPECT_TRUE(stack_->Push(i));
+TEST_F(List_GTest, ListAppendPrepend_GTest){
+  const int knode_num = 100;
+  List *node = list_head_;
+  for(int i = 0; i < knode_num; i ++) {
+    List *tmp = new List;
+    node->Append(tmp);
+    node = tmp;
   }
-  EXPECT_FALSE(stack_->Push(7788));
+  EXPECT_EQ(knode_num, list_head_->CountForward());
+  EXPECT_TRUE(node->CheckComplete());
   
-  for(i = stack_->GetStackMaxSize(); i > 0; i --) {
-	  EXPECT_EQ(i, stack_->Pop());
+  for(int i = 0; i < knode_num; i++) {
+    List *tmp = new List;
+    node->Prepend(tmp);
+    node = tmp;
   }
-  EXPECT_EQ(0, stack_->Pop());
+  EXPECT_EQ(2*knode_num, list_head_->CountForward());
+  EXPECT_TRUE(node->CheckComplete());
+}
+
+TEST_F(List_GTest, ListSplice_GTest){
+  const int kfirst_node_num = 100;
+  const int ksecond_node_num = 50;
+  
+  List *list1 = list_head_;
+  List *list2 = new List;
+  List *node = list1;
+  
+  for(int i = 0; i < kfirst_node_num; i ++) {
+    List *tmp = new List;
+    node->Append(tmp);
+    node = tmp;
+  }
+  EXPECT_TRUE(node->CheckComplete());
+  
+  node = list2;
+  for(int i = 0; i < ksecond_node_num; i++) {
+    List *tmp = new List;
+    node->Append(tmp);
+    node = tmp;
+  }
+  EXPECT_TRUE(node->CheckComplete());
+  List *tail = list1->GetTail();
+  EXPECT_EQ(kfirst_node_num, tail->CountBackward());
+
+  List *head = list2->GetHead();
+  EXPECT_EQ(ksecond_node_num, head->CountForward());
+  
+  tail->Append(head);
+
+  EXPECT_EQ(kfirst_node_num + ksecond_node_num + 1, list1->CountForward());
+  EXPECT_TRUE(list1->CheckComplete());
+
+  EXPECT_EQ(kfirst_node_num + ksecond_node_num + 1, node->CountBackward());
+  EXPECT_TRUE(node->CheckComplete());
+  
 }
 
 int main(int argc, char *argv[])

@@ -1,11 +1,7 @@
 set(CMAKE_CXX_FLAGS "-Wall -std=c++11 -g -O0")
 
-set(ARRAY_QUEUE
-	array_queue.cpp
-)
-
-set(LIST_QUEUE
-	list_queue.cpp
+set(LIST
+	list.cpp
 )
 
 include_directories("${PROJECT_SOURCE_DIR}/../googletest/googletest/include")
@@ -21,22 +17,18 @@ find_library(PTHREAD
 	PATHS /usr/lib/x86_64-linux-gnu/
 	NO_DEFAULT_PATH)
 
-add_executable(array-queue-exe
-	${ARRAY_QUEUE}
-)
-
-add_executable(list-queue-exe
-	${LIST_QUEUE}
+add_executable(list-exe
+	${LIST}
 )
 
 target_link_libraries(
-	array-queue-exe
+	list-exe
 	${GTEST}
 	${PTHREAD}
 )
 
 target_link_libraries(
-	list-queue-exe
+	list-exe
 	${GTEST}
 	${PTHREAD}
 )
