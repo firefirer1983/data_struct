@@ -68,45 +68,45 @@ public:
     }
     if(child) {
       cout << "Go it: " << parent->key_ << ((key < parent->key_)?" <- ":" -> ") << key << endl;
-      if(parent == child) {
-        cout << "find key but it's the root key, can't delete root" << endl;
+      if(child->right_ && child->left_) {
+    	BSTNode *parent = child;
+    	BSTNode *min = child->right_;
+    	while(1) {
+    	  if(min->left_) {
+    		parent = min;
+    		min = min->left_;
+    	  }
+    	  else {
+    		break;
+    	  }
+    	}
+    	cout << "min: " << parent->key_ << " => " << min->key_ << endl;
+		child->key_ = min->key_;
+    	if(parent->right_ == min) {
+    	  cout << "adjacent right node replacement!" << endl;
+    	  child->right_ = min->right_;
+    	} else {
+    	  parent->left_ = nullptr;
+    	}
+    	delete min;
+      } else if(child->right_) {
+        cout << "only right tree" << endl;
+    	CopyNode(child, child->right_);
+    	delete child->right_;
+      } else if(child->left_) {
+        cout << "only left tree" << endl;
+    	CopyNode(child, child->left_);
+    	delete child->left_;
       } else {
-        if(child->right_ && child->left_) {
-		  BSTNode *parent = child;
-          BSTNode *min = child->right_;
-          while(1) {
-            if(min->left_) {
-			  parent = min;
-              min = min->left_;
-            }
-            else {
-              break;
-            }
-          }
-          cout << "min: " << parent->key_ << " => " << min->key_ << endl;
-          CopyRightNode(child, min);
-          if(parent != child) {
-            if(min->key_ < parent->key_) {
-              parent->left_ = nullptr;
-            } else {
-              parent->right_ = nullptr;
-            }
-          }
-          delete min;
-        } else if(child->right_) {
-          CopyNode(child, child->right_);
-          delete child->right_;
-        } else if(child->left_) {
-          CopyNode(child, child->left_);
-          delete child->left_;
-        } else {
+        cout << "delete leafs without sub trees" <<endl;
+        if(parent) {
           if(key < parent->key_) {
             parent->left_ = nullptr;
           } else {
             parent->right_ = nullptr;
           }
-		  delete child;
-        }
+    	}
+    	delete child;
       }
       ret = true;
     }
@@ -262,6 +262,30 @@ TEST_F(BST_GTest, BSTSearch_GTest){
   EXPECT_EQ(true, tree_->Delete(110));
   tree_->Traverse();
   EXPECT_EQ(true, tree_->Delete(91));
+  tree_->Traverse();
+  EXPECT_EQ(true, tree_->Delete(20));
+  tree_->Traverse();
+  EXPECT_EQ(true, tree_->Delete(55));
+  tree_->Traverse();
+  EXPECT_EQ(true, tree_->Delete(21));
+  tree_->Traverse();
+  EXPECT_EQ(true, tree_->Delete(24));
+  tree_->Traverse();
+  EXPECT_EQ(true, tree_->Delete(28));
+  tree_->Traverse();
+  
+  EXPECT_EQ(true, tree_->Delete(15));
+  tree_->Traverse();
+  EXPECT_EQ(true, tree_->Delete(120));
+  tree_->Traverse();
+  EXPECT_EQ(true, tree_->Delete(70));
+  tree_->Traverse();
+  
+  EXPECT_EQ(true, tree_->Delete(150));
+  tree_->Traverse();
+  EXPECT_EQ(true, tree_->Delete(23));
+  tree_->Traverse();
+  EXPECT_EQ(true, tree_->Delete(25));
   tree_->Traverse();
 }
 
