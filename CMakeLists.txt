@@ -7,4 +7,4 @@ add_subdirectory(queue)
 add_subdirectory(list)
 add_subdirectory(binary_tree)
 add_subdirectory(heap)
-
+add_subdirectory(bst)
