@@ -1,7 +1,7 @@
 set(CMAKE_CXX_FLAGS "-Wall -std=c++11 -g -O0")
 
 set(BSTR
-	bst.cpp
+	bstr.cpp
 )
 
 include_directories("${PROJECT_SOURCE_DIR}/../googletest/googletest/include")
