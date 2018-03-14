@@ -8,3 +8,6 @@ add_subdirectory(list)
 add_subdirectory(binary_tree)
 add_subdirectory(heap)
 add_subdirectory(bst)
+add_subdirectory(avl)
+add_subdirectory(bstr)
+
