@@ -143,10 +143,10 @@ public:
     if(node) {
       cout << "[" << node->key_ << "]:" << endl;
       if(node->left_) {
-        left_height = 1 + _Height(node->left_);
+        left_height = _Height(node->left_);
       }
       if(node->right_) {
-        right_height = 1 + _Height(node->right_);
+        right_height = _Height(node->right_);
       }
       height = _MAX(left_height, right_height) + 1;
 	  cout << "left: " << left_height << " right:" << right_height << endl;
