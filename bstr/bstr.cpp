@@ -13,11 +13,25 @@ enum dir_t{
   DIR_NUM,
 };
 
+
+
 #define NODE(dir, node) (node->branchs_[dir]) 
 #define LEFT_NODE(node) (node->branchs_[DIR_LEFT])
 #define RIGHT_NODE(node) (node->branchs_[DIR_RIGHT])
 
-struct BSTNode
+//class BSTNode;
+//
+//typedef struct _branch_t{
+//  BSTNode *b_left;
+//  BSTNode *b_right;
+//}branch_t;
+//
+//union tree {
+//  BSTNode *branchs[DIR_NUM];
+//  branch_t branch;
+//};
+
+class BSTNode
 {
 public:
   BSTNode(int key)  : key_(key) {
@@ -67,12 +81,19 @@ public:
 	return ret;
   }
 
-
   BSTNode *_FindMinNode(BSTNode *node) {
     if(!LEFT_NODE(node)) {
 	  return node;
     } else {
 	  return _FindMinNode(LEFT_NODE(node)); 
+    }
+  }
+  
+  BSTNode *_FindMaxNode(BSTNode *node) {
+    if(!RIGHT_NODE(node)) {
+	  return node;
+    } else {
+	  return _FindMinNode(RIGHT_NODE(node)); 
     }
   }
 
@@ -191,6 +212,7 @@ public:
       _Traverse(RIGHT_NODE(node));
     }
   }
+  
   void Traverse() {
     _Traverse(root_);
 	cout << endl;
