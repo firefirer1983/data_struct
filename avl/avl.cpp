@@ -40,25 +40,49 @@ public:
   }
   void Insert(int key) {
     cout << "==> " << key << endl;
+    AVLNode *ret = nullptr;
     if(root_ == nullptr) {
       root_ = new AVLNode(key);
     } else {
-      _Insert(key, root_);
+      ret = _Insert(key, root_);
+      if(ret) {
+        if(ret && key < root_->key_) {
+          root_->left_ = ret;
+        } else if(ret) {
+		  cout << "root_ right: " << key << endl;
+		  root_->right_ = ret;
+        }
+      }
     }
   }
   AVLNode *_Insert(int key, AVLNode *parent) {
+    AVLNode *ret = nullptr;
     if(!parent) {
-      parent = new AVLNode(key);
+      ret = new AVLNode(key);
     } else if(key < parent->key_) {
-      parent->left_ = _Insert(key, parent->left_);
-//      cout << "(" << parent->left_->key_ << ")" << "<-" << parent->key_ << endl;
-	  parent = _Balance(parent);
+      ret = _Insert(key, parent->left_);
+      if(ret){
+        parent->left_ = ret;
+      	cout << "(" << parent->left_->key_ << ")" << "<-" << parent->key_ << endl;
+      } else {
+		  parent = _Balance(parent);
+      }
+      
+	  ret =nullptr;
+	  
     } else if(key >= parent->key_) {
-	  parent->right_ = _Insert(key, parent->right_);
-//      cout << parent->key_ << "->" << "(" << parent->right_->key_ << ")" <<  endl;
-	  parent = _Balance(parent);
+      ret = _Insert(key, parent->right_);
+      if(ret) {
+	  	parent->right_ = ret;
+	  	cout << parent->key_ << "->" << "(" << parent->right_->key_ << ")" <<  endl;
+	  } else {
+		  parent = _Balance(parent);
+      }
+	  ret =nullptr;
+//      
+//	  
     }
-    return parent;
+    return ret;
   }
 
   int _Diff(AVLNode *parent) {
@@ -120,6 +144,7 @@ public:
     _Traverse(root_);
     cout << endl;
   }
+  
   void _Traverse(AVLNode *node) {
     if(node) {
       cout << node->key_ << " h: " << _Height(node) << endl;
@@ -141,7 +166,6 @@ public:
     int right_height = 0;
     int height = 0;
     if(node) {
-      cout << "[" << node->key_ << "]:" << endl;
       if(node->left_) {
         left_height = _Height(node->left_);
       }
@@ -149,7 +173,7 @@ public:
         right_height = _Height(node->right_);
       }
       height = _MAX(left_height, right_height) + 1;
-	  cout << "left: " << left_height << " right:" << right_height << endl;
+	  cout << left_height << " <-- [" << node->key_ << "] --> "  << right_height << endl;
     }
     return  height;
   }
@@ -192,8 +216,8 @@ TEST_F(AVL_GTest, AVLInsert_GTest){
 TEST_F(AVL_GTest, AVLInsertBalance_GTest){
   for(unsigned int i = 0; i < (sizeof(leafs_key_)/sizeof(leafs_key_[0])); i ++) {
     tree_->Insert(leafs_key_[i]);
-    tree_->Traverse();
   }
+  tree_->Traverse();
   cout << endl;
 }
 
