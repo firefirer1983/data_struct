@@ -38,6 +38,22 @@ public:
       delete node;
     }
   }
+
+  AVLNode *insert(int key, AVLNode *parent) {
+    AVLNode *root = nullptr;
+    if(!parent) {
+	  root = new AVLNode(key);
+    } else if(key < parent->key_) {
+      root = insert(key, parent->left_);
+	  if(root)
+        parent->left_ = root;
+    } else {
+      root = insert(key, parent->right_);
+      if(root)
+	    parent->right_ = root;
+    }
+	return root;
+  }
   void Insert(int key) {
     cout << "==> " << key << endl;
     AVLNode *ret = nullptr;
@@ -78,9 +94,7 @@ public:
 	  } else {
 		  parent = _Balance(parent);
       }
-	  ret =nullptr;
-//      
-//	  
+	  ret = nullptr;
     }
     return ret;
   }
@@ -88,7 +102,7 @@ public:
   int _Diff(AVLNode *parent) {
     int right = _Height(parent->right_);
     int left = _Height(parent->left_);
-    int diff = right - left;
+    int diff = left - right;
     cout << parent->key_ << ": " << left << " vs " << right << " diff: " << diff << endl;
     return diff;
   }
@@ -111,33 +125,38 @@ public:
 
   
   AVLNode *_LRRotate(AVLNode *node) { // right rotation once!
-	  cout << "_LRRotate" << endl;
+    cout << "_LRRotate" << endl;
+	node->left_ = _LeftRotate(node->left_);
+	_RightRotate(node);
     return node;
+	
   }
   
   AVLNode *_RLRotate(AVLNode *node) { // right rotation once!
     cout << "_RLRotate" << endl;
+	node->right_ = _RightRotate(node->right_);
+	_LeftRotate(node);
     return node;
   }
 
   AVLNode *_Balance(AVLNode *parent) {
+  	cout << "balance: " << parent->key_ << endl;
     int diff = _Diff(parent);
     cout << "diff: " << diff << endl;
-    AVLNode *root = parent;
     if(diff > 1) {
-      if(_Diff(parent->right_) > 0) {
-        root = _LeftRotate(parent);
+      if(_Diff(parent->left_) > 0) {
+        parent = _RightRotate(parent);
       } else {
-		root = _RLRotate(parent);
+		parent = _RLRotate(parent);
       }
     } else if(diff < -1) {
-      if(_Diff(parent->left_) < 0) {
-        root = _RightRotate(parent);
+      if(_Diff(parent->right_) < 0) {
+        parent = _LeftRotate(parent);
       } else {
-		root = _LRRotate(parent);
+		parent = _LRRotate(parent);
       }
     }
-    return root;
+    return parent;
   }
 
   void Traverse() {
@@ -147,7 +166,7 @@ public:
   
   void _Traverse(AVLNode *node) {
     if(node) {
-      cout << node->key_ << " h: " << _Height(node) << endl;
+      cout << node->key_ << " ";
       _Traverse(node->left_);
       _Traverse(node->right_);
     }
@@ -214,10 +233,16 @@ TEST_F(AVL_GTest, AVLInsert_GTest){
 }
 #endif
 TEST_F(AVL_GTest, AVLInsertBalance_GTest){
+#if 0
   for(unsigned int i = 0; i < (sizeof(leafs_key_)/sizeof(leafs_key_[0])); i ++) {
     tree_->Insert(leafs_key_[i]);
   }
+#endif
+  tree_->root_ = tree_->insert(50, tree_->root_);
+  tree_->root_ = tree_->insert(30, tree_->root_);
+  tree_->root_ = tree_->insert(10, tree_->root_);
   tree_->Traverse();
+  
   cout << endl;
 }
 
