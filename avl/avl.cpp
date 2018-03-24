@@ -42,16 +42,41 @@ public:
   AVLNode *insert(int key, AVLNode *parent) {
     AVLNode *root = nullptr;
     if(!parent) {
-	  root = new AVLNode(key);
+      root = new AVLNode(key);
     } else if(key < parent->key_) {
-      root = insert(key, parent->left_);
-	  if(root)
-        parent->left_ = root;
+      if(parent->left_) {
+        parent->left_ = insert(key, parent->left_);
+      } else {
+        parent->left_ = new AVLNode(key);
+      }
     } else {
-      root = insert(key, parent->right_);
-      if(root)
-	    parent->right_ = root;
+      if(parent->right_) {
+        parent->right_ = insert(key, parent->right_);
+      } else {
+        parent->right_ = new AVLNode(key);
+      }
     }
+    
+    if(parent) {
+	  cout << "bef: " << _Height(parent->left_) << " << [" <<parent->key_ << "] >> " << _Height(parent->right_) << " -> diff: " << _Diff(parent) << endl;
+	  if(_Diff(parent) > 1) {
+	    if(_Diff(parent->left_) > 0) {
+	      root = _RightRotate(parent);
+	    } else {
+	      root = _LRRotate(parent);
+	    }
+		cout << _Height(parent->left_) << " << [" <<parent->key_ << "] >> " << _Height(parent->right_) << " -> diff: " << _Diff(parent) << endl;
+	  } else if(_Diff(parent) < -1) {
+	    if(_Diff(parent->right_) < 0) {
+	      root = _LeftRotate(parent);
+	    } else {
+	      root = _RLRotate(parent);
+	    }
+	  } else {
+	    root = parent;
+	  }
+	  cout << _Height(parent->left_) << " << [" <<parent->key_ << "] >> " << _Height(parent->right_) << " -> diff: " << _Diff(parent) << endl;
+	}
 	return root;
   }
   void Insert(int key) {
@@ -103,12 +128,12 @@ public:
     int right = _Height(parent->right_);
     int left = _Height(parent->left_);
     int diff = left - right;
-    cout << parent->key_ << ": " << left << " vs " << right << " diff: " << diff << endl;
+//    cout << parent->key_ << ": " << left << " vs " << right << " diff: " << diff << endl;
     return diff;
   }
   
   AVLNode *_LeftRotate(AVLNode *node) { // right rotation once!
-    cout << "leftRotate" << endl;
+    cout << "_LeftRotate["<<node->key_<<"]" << endl;
     AVLNode *root = node->right_;
     node->right_ = root->left_;
     root->left_ = node;
@@ -116,7 +141,7 @@ public:
   }
   
   AVLNode *_RightRotate(AVLNode *node) { // right rotation once!
-    cout << "_RightRotate" << endl;
+    cout << "_RightRotate["<<node->key_<<"]" << endl;
     AVLNode *root = node->left_;
     node->left_ = root->right_;
     root->right_ = node;
@@ -125,18 +150,16 @@ public:
 
   
   AVLNode *_LRRotate(AVLNode *node) { // right rotation once!
-    cout << "_LRRotate" << endl;
+    cout << "_LRRotate["<<node->key_<<"]" << endl;
 	node->left_ = _LeftRotate(node->left_);
-	_RightRotate(node);
-    return node;
+    return _RightRotate(node);
 	
   }
   
   AVLNode *_RLRotate(AVLNode *node) { // right rotation once!
-    cout << "_RLRotate" << endl;
+    cout << "_RLRotate["<<node->key_<<"]" << endl;
 	node->right_ = _RightRotate(node->right_);
-	_LeftRotate(node);
-    return node;
+    return _LeftRotate(node);
   }
 
   AVLNode *_Balance(AVLNode *parent) {
@@ -166,7 +189,8 @@ public:
   
   void _Traverse(AVLNode *node) {
     if(node) {
-      cout << node->key_ << " ";
+      cout << node->key_ << " " << " h:" << _Height(node) << " diff: " << _Diff(node) << endl;
+      
       _Traverse(node->left_);
       _Traverse(node->right_);
     }
@@ -184,17 +208,14 @@ public:
     int left_height = 0;
     int right_height = 0;
     int height = 0;
-    if(node) {
-      if(node->left_) {
-        left_height = _Height(node->left_);
-      }
-      if(node->right_) {
-        right_height = _Height(node->right_);
-      }
+    if(!node) {
+      height = 0;
+    } else {
+      left_height = _Height(node->left_);
+      right_height = _Height(node->right_);
       height = _MAX(left_height, right_height) + 1;
-	  cout << left_height << " <-- [" << node->key_ << "] --> "  << right_height << endl;
     }
-    return  height;
+    return height;
   }
   AVLNode *root_;
 };
@@ -204,7 +225,9 @@ class AVL_GTest : public ::testing::Test {
 protected:
   AVL *tree_;
 //  int leafs_key_[15] = {55, 23, 91, 20, 25, 80, 120, 15, 21, 24, 28, 70, 85, 110, 150};
-  int leafs_key_[3] = {50, 30, 10};
+//  int leafs_key_[3] = {30, 10, 20};
+  int leafs_key_[11] = {20, 10, 40, 30, 50, 60, 70, 160, 150, 25, 28};
+
   virtual void SetUp(){
   tree_ = new AVL();
 #if 0
@@ -238,9 +261,10 @@ TEST_F(AVL_GTest, AVLInsertBalance_GTest){
     tree_->Insert(leafs_key_[i]);
   }
 #endif
-  tree_->root_ = tree_->insert(50, tree_->root_);
-  tree_->root_ = tree_->insert(30, tree_->root_);
-  tree_->root_ = tree_->insert(10, tree_->root_);
+  tree_->root_ = tree_->insert(leafs_key_[0], tree_->root_);
+  for(unsigned int i = 1; i < (sizeof(leafs_key_)/sizeof(leafs_key_[0])); i ++) {
+	tree_->root_ = tree_->insert(leafs_key_[i], tree_->root_);
+  }
   tree_->Traverse();
   
   cout << endl;
