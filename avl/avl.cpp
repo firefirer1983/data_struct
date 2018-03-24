@@ -39,27 +39,29 @@ public:
     }
   }
 
-  AVLNode *insert(int key, AVLNode *parent) {
+  AVLNode *Insert(int key, AVLNode *parent) {
     AVLNode *root = nullptr;
     if(!parent) {
       root = new AVLNode(key);
     } else if(key < parent->key_) {
       if(parent->left_) {
-        parent->left_ = insert(key, parent->left_);
+        parent->left_ = Insert(key, parent->left_);
       } else {
         parent->left_ = new AVLNode(key);
+        cout<< "[" << key << "]" << "->"<< "[" << parent->key_ << "]" <<  endl;
       }
     } else {
       if(parent->right_) {
-        parent->right_ = insert(key, parent->right_);
+        parent->right_ = Insert(key, parent->right_);
       } else {
         parent->right_ = new AVLNode(key);
+        cout<<"[" << parent->key_ <<"]" << "<-" << "[" << key << "]" << endl;
       }
     }
     
     if(parent) {
-	  cout << "bef: " << _Height(parent->left_) << " << [" <<parent->key_ << "] >> " << _Height(parent->right_) << " -> diff: " << _Diff(parent) << endl;
 	  if(_Diff(parent) > 1) {
+	    cout << "Unbalance: " << _Height(parent->left_) << " << [" <<parent->key_ << "] >> " << _Height(parent->right_) << " -> diff: " << _Diff(parent) << endl;
 	    if(_Diff(parent->left_) > 0) {
 	      root = _RightRotate(parent);
 	    } else {
@@ -67,61 +69,18 @@ public:
 	    }
 		cout << _Height(parent->left_) << " << [" <<parent->key_ << "] >> " << _Height(parent->right_) << " -> diff: " << _Diff(parent) << endl;
 	  } else if(_Diff(parent) < -1) {
+	    cout << "Unbalance: " << _Height(parent->left_) << " << [" <<parent->key_ << "] >> " << _Height(parent->right_) << " -> diff: " << _Diff(parent) << endl;
 	    if(_Diff(parent->right_) < 0) {
 	      root = _LeftRotate(parent);
 	    } else {
 	      root = _RLRotate(parent);
 	    }
+		cout << _Height(parent->left_) << " << [" <<parent->key_ << "] >> " << _Height(parent->right_) << " -> diff: " << _Diff(parent) << endl;
 	  } else {
 	    root = parent;
 	  }
-	  cout << _Height(parent->left_) << " << [" <<parent->key_ << "] >> " << _Height(parent->right_) << " -> diff: " << _Diff(parent) << endl;
 	}
 	return root;
-  }
-  void Insert(int key) {
-    cout << "==> " << key << endl;
-    AVLNode *ret = nullptr;
-    if(root_ == nullptr) {
-      root_ = new AVLNode(key);
-    } else {
-      ret = _Insert(key, root_);
-      if(ret) {
-        if(ret && key < root_->key_) {
-          root_->left_ = ret;
-        } else if(ret) {
-		  cout << "root_ right: " << key << endl;
-		  root_->right_ = ret;
-        }
-      }
-    }
-  }
-  AVLNode *_Insert(int key, AVLNode *parent) {
-    AVLNode *ret = nullptr;
-    if(!parent) {
-      ret = new AVLNode(key);
-    } else if(key < parent->key_) {
-      ret = _Insert(key, parent->left_);
-      if(ret){
-        parent->left_ = ret;
-      	cout << "(" << parent->left_->key_ << ")" << "<-" << parent->key_ << endl;
-      } else {
-		  parent = _Balance(parent);
-      }
-      
-	  ret =nullptr;
-	  
-    } else if(key >= parent->key_) {
-      ret = _Insert(key, parent->right_);
-      if(ret) {
-	  	parent->right_ = ret;
-	  	cout << parent->key_ << "->" << "(" << parent->right_->key_ << ")" <<  endl;
-	  } else {
-		  parent = _Balance(parent);
-      }
-	  ret = nullptr;
-    }
-    return ret;
   }
 
   int _Diff(AVLNode *parent) {
@@ -160,26 +119,6 @@ public:
     cout << "_RLRotate["<<node->key_<<"]" << endl;
 	node->right_ = _RightRotate(node->right_);
     return _LeftRotate(node);
-  }
-
-  AVLNode *_Balance(AVLNode *parent) {
-  	cout << "balance: " << parent->key_ << endl;
-    int diff = _Diff(parent);
-    cout << "diff: " << diff << endl;
-    if(diff > 1) {
-      if(_Diff(parent->left_) > 0) {
-        parent = _RightRotate(parent);
-      } else {
-		parent = _RLRotate(parent);
-      }
-    } else if(diff < -1) {
-      if(_Diff(parent->right_) < 0) {
-        parent = _LeftRotate(parent);
-      } else {
-		parent = _LRRotate(parent);
-      }
-    }
-    return parent;
   }
 
   void Traverse() {
@@ -230,15 +169,6 @@ protected:
 
   virtual void SetUp(){
   tree_ = new AVL();
-#if 0
-    tree_ = new AVL(new AVLNode(leafs_key_[0]));
-    for(unsigned int i = 1; i < (sizeof(leafs_key_)/sizeof(leafs_key_[0])); i ++) {
-      tree_->Insert(leafs_key_[i]);
-      tree->Height();
-    }
-    cout << endl;
-    tree_->Traverse();
-#endif	  
   }
   
   virtual void TearDown(){
@@ -246,74 +176,15 @@ protected:
   }
 };
 
-#if 0
-TEST_F(AVL_GTest, AVLInsert_GTest){
-  tree_->Insert(8);
-  cout << endl;
-  tree_->Insert(89);
-  cout << endl;
-  tree_->Traverse();
-}
-#endif
 TEST_F(AVL_GTest, AVLInsertBalance_GTest){
-#if 0
   for(unsigned int i = 0; i < (sizeof(leafs_key_)/sizeof(leafs_key_[0])); i ++) {
-    tree_->Insert(leafs_key_[i]);
-  }
-#endif
-  tree_->root_ = tree_->insert(leafs_key_[0], tree_->root_);
-  for(unsigned int i = 1; i < (sizeof(leafs_key_)/sizeof(leafs_key_[0])); i ++) {
-	tree_->root_ = tree_->insert(leafs_key_[i], tree_->root_);
+	tree_->root_ = tree_->Insert(leafs_key_[i], tree_->root_);
   }
   tree_->Traverse();
   
   cout << endl;
 }
 
-#if 0
-TEST_F(AVL_GTest, AVLSearch_GTest){
-
-  for(unsigned i = 0; i < (sizeof(leafs_key_)/sizeof(leafs_key_[0])); i ++) {
-    EXPECT_TRUE(tree_->Search(leafs_key_[i]));
-  }
-
-  EXPECT_EQ(nullptr, tree_->Search(100));
-  tree_->Insert(100, tree_->root_);
-  cout << endl;
-  EXPECT_NE(nullptr, tree_->Search(100));
-  EXPECT_EQ(true, tree_->Delete(100));
-  EXPECT_EQ(nullptr, tree_->Search(100));
-  tree_->Traverse();
-  EXPECT_EQ(true, tree_->Delete(110));
-  tree_->Traverse();
-  EXPECT_EQ(true, tree_->Delete(91));
-  tree_->Traverse();
-  EXPECT_EQ(true, tree_->Delete(20));
-  tree_->Traverse();
-  EXPECT_EQ(true, tree_->Delete(55));
-  tree_->Traverse();
-  EXPECT_EQ(true, tree_->Delete(21));
-  tree_->Traverse();
-  EXPECT_EQ(true, tree_->Delete(24));
-  tree_->Traverse();
-  EXPECT_EQ(true, tree_->Delete(28));
-  tree_->Traverse();
-  
-  EXPECT_EQ(true, tree_->Delete(15));
-  tree_->Traverse();
-  EXPECT_EQ(true, tree_->Delete(120));
-  tree_->Traverse();
-  EXPECT_EQ(true, tree_->Delete(70));
-  tree_->Traverse();
-  
-  EXPECT_EQ(true, tree_->Delete(150));
-  tree_->Traverse();
-  EXPECT_EQ(true, tree_->Delete(23));
-  tree_->Traverse();
-  EXPECT_EQ(true, tree_->Delete(25));
-  tree_->Traverse();
-}
-#endif
 int main(int argc, char *argv[])
 {
   ::testing::InitGoogleTest(&argc, argv);
