@@ -129,7 +129,6 @@ public:
   void _Traverse(AVLNode *node) {
     if(node) {
       cout << node->key_ << " " << " h:" << _Height(node) << " diff: " << _Diff(node) << endl;
-      
       _Traverse(node->left_);
       _Traverse(node->right_);
     }
@@ -181,7 +180,6 @@ TEST_F(AVL_GTest, AVLInsertBalance_GTest){
 	tree_->root_ = tree_->Insert(leafs_key_[i], tree_->root_);
   }
   tree_->Traverse();
-  
   cout << endl;
 }
 
