@@ -10,4 +10,5 @@ add_subdirectory(heap)
 add_subdirectory(bst)
 add_subdirectory(avl)
 add_subdirectory(bstr)
+add_subdirectory(rbtree)
 
