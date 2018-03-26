@@ -46,7 +46,7 @@ using std::endl;
 class RBNode
 {
 public:
-  RBNode(int key)  : key_(key), left_(nullptr), right_(nullptr), black_(false) {};
+  RBNode(int key)  : key_(key), black_(false), left_(nullptr), right_(nullptr){};
   
   ~RBNode() {
     left_ = nullptr;
@@ -56,7 +56,21 @@ public:
   bool black_;
   RBNode *left_;
   RBNode *right_;
+  
+  void Red() {
+    this->black_ = false;
+  }
+  bool IsRed() {
+    return (this->black_ == false);
+  }
+  void Black() {
+    this->black_ = true;
+  }
+  bool IsBlack() {
+    return this->black_;
+  }
 };
+  
 
 class RBTree
 {
@@ -75,45 +89,40 @@ public:
     }
   }
 
-  RBNode *Insert(int key, RBNode *parent) {
+
+  RBNode *Insert(int key, RBNode *parent, RBNode *uncle) {
     RBNode *root = nullptr;
+	RBNode *inserted = nullptr;
     if(!parent) {
       root = new RBNode(key);
+	  root->Black();
     } else if(key < parent->key_) {
       if(parent->left_) {
-        parent->left_ = Insert(key, parent->left_);
+        parent->left_ = Insert(key, parent->left_, parent->right_);
       } else {
         parent->left_ = new RBNode(key);
         cout<< "[" << key << "]" << "->"<< "[" << parent->key_ << "]" <<  endl;
       }
+	  inserted = parent->left_;
     } else {
       if(parent->right_) {
-        parent->right_ = Insert(key, parent->right_);
+        parent->right_ = Insert(key, parent->right_, parent->left_);
       } else {
         parent->right_ = new RBNode(key);
         cout<<"[" << parent->key_ <<"]" << "<-" << "[" << key << "]" << endl;
       }
+	  inserted = parent->right_;
     }
     
     if(parent) {
-	  if(_Diff(parent) > 1) {
-	    cout << "Unbalance: " << _Height(parent->left_) << " << [" <<parent->key_ << "] >> " << _Height(parent->right_) << " -> diff: " << _Diff(parent) << endl;
-	    if(_Diff(parent->left_) > 0) {
-	      root = _RightRotate(parent);
-	    } else {
-	      root = _LRRotate(parent);
-	    }
-		cout << _Height(parent->left_) << " << [" <<parent->key_ << "] >> " << _Height(parent->right_) << " -> diff: " << _Diff(parent) << endl;
-	  } else if(_Diff(parent) < -1) {
-	    cout << "Unbalance: " << _Height(parent->left_) << " << [" <<parent->key_ << "] >> " << _Height(parent->right_) << " -> diff: " << _Diff(parent) << endl;
-	    if(_Diff(parent->right_) < 0) {
-	      root = _LeftRotate(parent);
-	    } else {
-	      root = _RLRotate(parent);
-	    }
-		cout << _Height(parent->left_) << " << [" <<parent->key_ << "] >> " << _Height(parent->right_) << " -> diff: " << _Diff(parent) << endl;
+	  if(inserted->IsRed()&&parent->IsRed()) { // red confict
+	  	if(uncle&&uncle->IsRed()) { // red uncle
+	  	  
+	  	} else { // black uncle
+		  
+	  	}
 	  } else {
-	    root = parent;
+	  	root = parent;
 	  }
 	}
 	return root;
@@ -213,7 +222,7 @@ protected:
 
 TEST_F(RBTree_GTest, RBTreeInsertBalance_GTest){
   for(unsigned int i = 0; i < (sizeof(leafs_key_)/sizeof(leafs_key_[0])); i ++) {
-	tree_->root_ = tree_->Insert(leafs_key_[i], tree_->root_);
+    tree_->root_ = tree_->Insert(leafs_key_[i], tree_->root_, nullptr);
   }
   tree_->Traverse();
   cout << endl;
