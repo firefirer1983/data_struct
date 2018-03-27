@@ -4,6 +4,7 @@
 
 #include <gtest/gtest.h>
 
+using std::cin;
 using std::cout;
 using std::endl;
 
@@ -60,14 +61,27 @@ public:
   void Red() {
     this->black_ = false;
   }
+  
   bool IsRed() {
     return (this->black_ == false);
   }
+  
   void Black() {
     this->black_ = true;
   }
+  
   bool IsBlack() {
     return this->black_;
+  }
+  
+  void ReColor() {
+    this->Black();
+    if(this->left_) {
+      this->left_->Red();
+    }
+    if(this->right_) {
+      this->right_->Red();
+    }
   }
 };
   
@@ -90,7 +104,7 @@ public:
   }
 
 
-  RBNode *Insert(int key, RBNode *parent, RBNode *uncle) {
+  RBNode *Insert(int key, RBNode *parent, RBNode *uncle, RBNode *grandpa) {
     RBNode *root = nullptr;
 	RBNode *inserted = nullptr;
     if(!parent) {
@@ -98,28 +112,55 @@ public:
 	  root->Black();
     } else if(key < parent->key_) {
       if(parent->left_) {
-        parent->left_ = Insert(key, parent->left_, parent->right_);
+        parent->left_ = Insert(key, parent->left_, parent->right_, parent);
       } else {
         parent->left_ = new RBNode(key);
-        cout<< "[" << key << "]" << "->"<< "[" << parent->key_ << "]" <<  endl;
+        cout<< "[" << key << "]" << "<-"<< "[" << parent->key_ << "]" <<  endl;
       }
 	  inserted = parent->left_;
     } else {
       if(parent->right_) {
-        parent->right_ = Insert(key, parent->right_, parent->left_);
+        parent->right_ = Insert(key, parent->right_, parent->left_, parent);
       } else {
         parent->right_ = new RBNode(key);
-        cout<<"[" << parent->key_ <<"]" << "<-" << "[" << key << "]" << endl;
+        cout<<"[" << parent->key_ <<"]" << "->" << "[" << key << "]" << endl;
       }
 	  inserted = parent->right_;
     }
     
     if(parent) {
-	  if(inserted->IsRed()&&parent->IsRed()) { // red confict
+	  if(inserted&&inserted->IsRed()&&parent->IsRed()) { // red confict
 	  	if(uncle&&uncle->IsRed()) { // red uncle
-	  	  
+	  	  parent->Black();
+	  	  uncle->Black();
+	  	  if(grandpa) {
+	  	    grandpa->Red();
+			printf("[color-flip] parent[%d]=>black uncle[%d]=>black grandpa[%d]=>red\n",parent->key_,uncle->key_,grandpa->key_);
+	  	  }
+	  	  root = parent;
 	  	} else { // black uncle
-		  
+	  	  
+          if(_Diff(parent) > 1) {
+            cout << "Unbalance: " << _Height(parent->left_) << " << [" <<parent->key_ << "] >> " << _Height(parent->right_) << " -> diff: " << _Diff(parent) << endl;
+            if(_Diff(parent->left_) > 0) {
+              root = _RightRotate(parent);
+            } else {
+              root = _LRRotate(parent);
+            }
+            cout << _Height(parent->left_) << " << [" <<parent->key_ << "] >> " << _Height(parent->right_) << " -> diff: " << _Diff(parent) << endl;
+            root->ReColor();
+          } else if(_Diff(parent) < -1) {
+            cout << "Unbalance: " << _Height(parent->left_) << " << [" <<parent->key_ << "] >> " << _Height(parent->right_) << " -> diff: " << _Diff(parent) << endl;
+            if(_Diff(parent->right_) < 0) {
+              root = _LeftRotate(parent);
+            } else {
+              root = _RLRotate(parent);
+            }
+            cout << _Height(parent->left_) << " << [" <<parent->key_ << "] >> " << _Height(parent->right_) << " -> diff: " << _Diff(parent) << endl;
+            root->ReColor();
+          } else {
+            root = parent;
+          }
 	  	}
 	  } else {
 	  	root = parent;
@@ -173,7 +214,7 @@ public:
   
   void _Traverse(RBNode *node) {
     if(node) {
-      cout << node->key_ << " " << " h:" << _Height(node) << " diff: " << _Diff(node) << endl;
+      cout << node->key_ << " " << " h:" << _Height(node) << " color: " << (node->black_?"Black":"Red")<< endl;
       _Traverse(node->left_);
       _Traverse(node->right_);
     }
@@ -209,8 +250,8 @@ protected:
   RBTree *tree_;
 //  int leafs_key_[15] = {55, 23, 91, 20, 25, 80, 120, 15, 21, 24, 28, 70, 85, 110, 150};
 //  int leafs_key_[3] = {30, 10, 20};
-  int leafs_key_[11] = {20, 10, 40, 30, 50, 60, 70, 160, 150, 25, 28};
-
+//  int leafs_key_[11] = {20, 10, 40, 30, 50, 60, 70, 160, 150, 25, 28};
+  int leafs_key_[4] = {30, 40, 20, 10};
   virtual void SetUp(){
   tree_ = new RBTree();
   }
@@ -222,7 +263,9 @@ protected:
 
 TEST_F(RBTree_GTest, RBTreeInsertBalance_GTest){
   for(unsigned int i = 0; i < (sizeof(leafs_key_)/sizeof(leafs_key_[0])); i ++) {
-    tree_->root_ = tree_->Insert(leafs_key_[i], tree_->root_, nullptr);
+    tree_->root_ = tree_->Insert(leafs_key_[i], tree_->root_, nullptr, nullptr);
+    if(tree_->root_->IsRed())
+      tree_->root_->Black();
   }
   tree_->Traverse();
   cout << endl;
@@ -230,7 +273,15 @@ TEST_F(RBTree_GTest, RBTreeInsertBalance_GTest){
 
 int main(int argc, char *argv[])
 {
-  ::testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
+  RBTree *tree_ = new RBTree();
+  int input_key = 0;
+  do {
+    cout << "Please input value to add to the tree: " << endl;
+    cin >> input_key;
+    tree_->root_ = tree_->Insert(input_key, tree_->root_, nullptr, nullptr);
+    if(tree_->root_->IsRed())
+      tree_->root_->Black();
+    tree_->Traverse(); 
+  }while(1);
 }
 
