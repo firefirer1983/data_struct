@@ -83,6 +83,15 @@ public:
       this->right_->Red();
     }
   }
+
+  bool RedConflict() {
+    if(this->IsRed()) {
+	  if((this->left_ && this->left_->IsRed()) || (this->right_ && this->right_->IsRed())) {
+	  	return true;
+	  }
+    }
+	return false;
+  }
 };
   
 
@@ -129,8 +138,10 @@ public:
     }
     
     if(parent) {
-	  if(inserted&&inserted->IsRed()&&parent->IsRed()) { // red confict
+	  if(parent->RedConflict()) { // red confict
+	    printf("parent[%d] child[%d] red confict\n", parent->key_, inserted->key_);
 	  	if(uncle&&uncle->IsRed()) { // red uncle
+	  	  cout << "Red uncle => Push black to bottom" << endl;
 	  	  parent->Black();
 	  	  uncle->Black();
 	  	  if(grandpa) {
@@ -138,43 +149,58 @@ public:
 			printf("[color-flip] parent[%d]=>black uncle[%d]=>black grandpa[%d]=>red\n",parent->key_,uncle->key_,grandpa->key_);
 	  	  }
 	  	  root = parent;
-	  	} else { // black uncle
-	  	  
-          if(_Diff(parent) > 1) {
-            cout << "Unbalance: " << _Height(parent->left_) << " << [" <<parent->key_ << "] >> " << _Height(parent->right_) << " -> diff: " << _Diff(parent) << endl;
-            if(_Diff(parent->left_) > 0) {
-              root = _RightRotate(parent);
-            } else {
-              root = _LRRotate(parent);
-            }
-            cout << _Height(parent->left_) << " << [" <<parent->key_ << "] >> " << _Height(parent->right_) << " -> diff: " << _Diff(parent) << endl;
-            root->ReColor();
-          } else if(_Diff(parent) < -1) {
-            cout << "Unbalance: " << _Height(parent->left_) << " << [" <<parent->key_ << "] >> " << _Height(parent->right_) << " -> diff: " << _Diff(parent) << endl;
-            if(_Diff(parent->right_) < 0) {
-              root = _LeftRotate(parent);
-            } else {
-              root = _RLRotate(parent);
-            }
-            cout << _Height(parent->left_) << " << [" <<parent->key_ << "] >> " << _Height(parent->right_) << " -> diff: " << _Diff(parent) << endl;
-            root->ReColor();
-          } else {
-            root = parent;
-          }
+	  	} else {
+		  cout << "Black uncle => Do rotate" << endl;
 	  	}
 	  } else {
 	  	root = parent;
 	  }
+	  
+      if((parent->left_&&parent->left_->RedConflict())||(parent->right_&&parent->right_->RedConflict())) {
+	    if(parent->left_&&parent->left_->RedConflict()) {
+		  printf("child[%d] red conflit!\n",parent->left_->key_);
+	    }
+	    if(parent->right_&&parent->right_->RedConflict()) {
+		  printf("child[%d] red conflit!\n",parent->right_->key_);
+	    }
+        if(_Diff(parent) > 1) {
+          cout << "Unbalance: " << _Height(root->left_) << " << [" <<root->key_ << "] >> " << _Height(root->right_) << " -> diff: " << _Diff(root) << endl;
+          if(_Diff(parent->left_) > 0) {
+            root = _RightRotate(parent);
+          } else {
+            root = _LRRotate(parent);
+          }
+          root->ReColor();
+          cout << _Height(root->left_) << " << [" <<root->key_ << "] >> " << _Height(root->right_) << " -> diff: " << _Diff(root) << endl;
+        } else if(_Diff(parent) < -1) {
+          cout << "Unbalance: " << _Height(root->left_) << " << [" <<root->key_ << "] >> " << _Height(root->right_) << " -> diff: " << _Diff(root) << endl;
+          if(_Diff(parent->right_) < 0) {
+          root = _LeftRotate(parent);
+          } else {
+          root = _RLRotate(parent);
+          }
+          root->ReColor();
+          cout << _Height(root->left_) << " << [" <<root->key_ << "] >> " << _Height(root->right_) << " -> diff: " << _Diff(root) << endl;
+        } else {
+          root = parent;
+        }
+      }else {
+	    root = parent;
+      }
 	}
 	return root;
   }
 
   int _Diff(RBNode *parent) {
-    int right = _Height(parent->right_);
-    int left = _Height(parent->left_);
-    int diff = left - right;
-//    cout << parent->key_ << ": " << left << " vs " << right << " diff: " << diff << endl;
-    return diff;
+    if(parent) {
+      int right = _Height(parent->right_);
+      int left = _Height(parent->left_);
+      int diff = left - right;
+  //    cout << parent->key_ << ": " << left << " vs " << right << " diff: " << diff << endl;
+      return diff;
+    } else {
+	  return 0;
+    }
   }
   
   RBNode *_LeftRotate(RBNode *node) { // right rotation once!
@@ -243,33 +269,6 @@ public:
   }
   RBNode *root_;
 };
-
-class RBTree_GTest : public ::testing::Test {
-
-protected:
-  RBTree *tree_;
-//  int leafs_key_[15] = {55, 23, 91, 20, 25, 80, 120, 15, 21, 24, 28, 70, 85, 110, 150};
-//  int leafs_key_[3] = {30, 10, 20};
-//  int leafs_key_[11] = {20, 10, 40, 30, 50, 60, 70, 160, 150, 25, 28};
-  int leafs_key_[4] = {30, 40, 20, 10};
-  virtual void SetUp(){
-  tree_ = new RBTree();
-  }
-  
-  virtual void TearDown(){
-    delete tree_;
-  }
-};
-
-TEST_F(RBTree_GTest, RBTreeInsertBalance_GTest){
-  for(unsigned int i = 0; i < (sizeof(leafs_key_)/sizeof(leafs_key_[0])); i ++) {
-    tree_->root_ = tree_->Insert(leafs_key_[i], tree_->root_, nullptr, nullptr);
-    if(tree_->root_->IsRed())
-      tree_->root_->Black();
-  }
-  tree_->Traverse();
-  cout << endl;
-}
 
 int main(int argc, char *argv[])
 {

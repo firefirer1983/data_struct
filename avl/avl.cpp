@@ -6,6 +6,7 @@
 
 using std::cout;
 using std::endl;
+using std::cin;
 
 class AVLNode
 {
@@ -48,14 +49,14 @@ public:
         parent->left_ = Insert(key, parent->left_);
       } else {
         parent->left_ = new AVLNode(key);
-        cout<< "[" << key << "]" << "->"<< "[" << parent->key_ << "]" <<  endl;
+        cout<< "[" << key << "]" << "<-"<< "[" << parent->key_ << "]" <<  endl;
       }
     } else {
       if(parent->right_) {
         parent->right_ = Insert(key, parent->right_);
       } else {
         parent->right_ = new AVLNode(key);
-        cout<<"[" << parent->key_ <<"]" << "<-" << "[" << key << "]" << endl;
+        cout<<"[" << parent->key_ <<"]" << "->" << "[" << key << "]" << endl;
       }
     }
     
@@ -158,34 +159,18 @@ public:
   AVLNode *root_;
 };
 
-class AVL_GTest : public ::testing::Test {
-
-protected:
-  AVL *tree_;
-//  int leafs_key_[15] = {55, 23, 91, 20, 25, 80, 120, 15, 21, 24, 28, 70, 85, 110, 150};
-//  int leafs_key_[3] = {30, 10, 20};
-  int leafs_key_[11] = {20, 10, 40, 30, 50, 60, 70, 160, 150, 25, 28};
-
-  virtual void SetUp(){
-  tree_ = new AVL();
-  }
-  
-  virtual void TearDown(){
-    delete tree_;
-  }
-};
-
-TEST_F(AVL_GTest, AVLInsertBalance_GTest){
-  for(unsigned int i = 0; i < (sizeof(leafs_key_)/sizeof(leafs_key_[0])); i ++) {
-	tree_->root_ = tree_->Insert(leafs_key_[i], tree_->root_);
-  }
-  tree_->Traverse();
-  cout << endl;
-}
 
 int main(int argc, char *argv[])
 {
-  ::testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
+  AVL *tree_;
+  tree_ = new AVL();
+  int input_val = 0;
+  do {
+  	cout << "Please input val for new node:" << endl;
+	cin >> input_val;
+    tree_->root_ = tree_->Insert(input_val, tree_->root_);
+	tree_->Traverse();
+  } while(1);
+  delete tree_;
 }
 
