@@ -11,4 +11,5 @@ add_subdirectory(bst)
 add_subdirectory(avl)
 add_subdirectory(bstr)
 add_subdirectory(rbtree)
+add_subdirectory(bstree)
 

@@ -42,7 +42,74 @@ using std::endl;
    5d: parent(right)&&node(left):
   i. rightRotate + leftRotate
   ii. recolor: parent=>black, children=>red   
-*/
+
+  			(C) red/black tree delection rules:
+Rules for the nodes to be delete:
+  i. only got one child ( because it's the right most node in the left subtree or left most node in the right subtree)
+ ii. left most node have no left sibling, right most node have no right sibling
+
+ 
+Case 1 and Case 2 won't create double black node, So it's simple!
+
+Case 1:
+The node to be delete is RED:
+  *Simply delete it
+  *if node has a child, then replace it with the child
+
+Case 2:
+The node to be delete is BLACK, but has only one RED child:
+  *Relace the node with its child, Recolor the RED child to BLACK
+
+
+Case 3:
+The node to be delete is BLACK and has one BLACK child
+  *Replace the node with its child, and the child will become a DOUBLE BLACK node
+
+Case 3-1: (Terminal)
+  *DOUBLE BLACK node is root.
+  -- Just change DOUBLE BLACK node to BLACK node
+
+  Then Case 3-1 Terminated!
+  
+Case 3-2:
+  *DOUBLE BLACK node has a BLACK parent and a right RED sibling
+     a. Left rotate its parent
+     b. Recolor BLACK parent -> RED 
+     c. Recolor RED silbing -> BLACK
+     
+  Case 3-2 -> Case 3-4 
+
+Case 3-3:
+  *DOUBLE BLACK node has a BLACK parent, and a right BLACK sibling , and the right 
+   BALCK sibling has two BLACK children
+     a. change DOUBLE BLACK node to BLACK node
+     b. change BLACK parent -> DOUBLE BLACK
+     c. change BLACK sibling -> RED
+
+   Case 3-3 -> Case 3-1
+   Case 3-3 -> Case 3-5
+
+Case 3-4: (Terminal)
+  * DOUBLE BLACK node has a RED parent , BLACK sibling with 2 BLACK children
+     a. Recolor the DOUBLE BLACK -> BLACK
+     b. Recolor the RED parent -> BLACK
+     c. Recolor the BLACK sibling -> RED
+
+  Then Case 3-4 Terminated!
+  
+Case 3-5:
+  * DOUBLE BLACK node has a BLACK sibling. BLACK sibling has a inner RED child
+     a. Right rotate the BLACK sibling
+     b. Recolor the BLACK sibling 0> RED
+     c. Recolr BLACK sibling's RED child -> BLACK
+
+Case 3-6:
+  * DOUBLE BLACK node has a BLACK sibling . BLACK sibling has a outer RED child
+     a. Left rotate its parent
+     b. Recolor its parent -> BLACK
+     c. Recolor DOUBLE BLACK node -> BLACK
+     dm Recolor its sibing outer RED child -> BLACK
+*/   
 
 class RBNode
 {
