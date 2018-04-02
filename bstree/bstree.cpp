@@ -101,15 +101,27 @@ public:
   }
   
   bool Delete(int key) {
+    Node *del_node = nullptr;
+		bool ret = false;
     if(!root_) {
       cout << "Delete failed on a empty tree" << endl;
       return false;
     }
-    Node *del_node = _Delete(key, root_);
-    if(del_node)
-      return true;
-    else
-      return false;
+		if((key == root_->key_)&&\
+			 (!root_->left_)&&\
+			 (!root_->right_)){
+			 root_ = _Delete(key, root_);
+			 ret = true;
+		} else {
+			del_node = _Delete(key, root_);
+			root_ = del_node;
+			if(del_node)
+				ret =  true;
+			else
+				ret =  false;
+		}
+		cout << "del: " << key << " ret: " << ret << endl;
+		return ret;
   }
 
   void TraverseInOrder() {
@@ -131,6 +143,10 @@ public:
   }
 	
   void TraverseTopBottom() {
+    if(!root_) {
+			cout << "Empty Tree, Can't Traverse!" << endl;
+			return ;
+    }
     cout << "Top Bottom:" << endl;
     int node_cnt = 0;
     int height_pre = _Height(root_);
@@ -256,13 +272,16 @@ private:
 				parent->key_ = swap_node->key_;
 				_Delete(swap_node->key_, swap_node);
 			}
+			return parent;
     } else if(key < parent->key_) {
       if(parent->left_) {
         parent->left_ = _Delete(key, parent->left_);
+				del_node = parent;
       }
     } else {
       if(parent->right_) {
         parent->right_ = _Delete(key, parent->right_);
+				del_node = parent;
       }
     }
     return del_node;
@@ -347,8 +366,8 @@ TEST_F(BSTree_GTest, TraverseTopBottom_GTest){
 }
 
 TEST_F(BSTree_GTest, RandomNode_GTest){
-  const int node_num = 10;
-  const int node_val_max = 10;
+  const int node_num = 50;
+  const int node_val_max = 50;
   const int node_val_min = 0;
   BSTree *tree = new BSTree();
   int *rand_nodes = (int*)malloc(node_num*sizeof(int));
@@ -387,7 +406,8 @@ TEST_F(BSTree_GTest, RandomNode_GTest){
     cout << rand_nodes[rand_idx[i]]<< " ";
   }
   cout << endl;
-  
+	cout << "Tree: " << endl;
+  tree->TraversePreOrder();
   for(int i = 0; i < node_num; i ++) {
     int node_key = rand_nodes[rand_idx[i]];
     bool ret = tree->Delete(node_key);
