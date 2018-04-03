@@ -153,7 +153,7 @@ private:
 class Node
 {
 public:
-  Node(int key)  : key_(key), left_(nullptr), right_(nullptr) {};
+  Node(int key)  : key_(key), left_(nullptr), right_(nullptr), red_(true){};
   
   ~Node() {
     left_ = nullptr;
@@ -170,18 +170,34 @@ public:
 	  return leaf;
 	}
 	
+	bool IsBlack() {
+	  return !(this->red_);
+	}
+	
+	bool IsRed() {
+	  return this->red_;
+	}
+	void TurnBlack(void) {
+	  this->red_ = false;
+	}
+	
+	void TurnRed(void) {
+		this->red_ = true;
+	}
+	
   int key_;
   Node *left_;
   Node *right_;
+  bool red_;
 	int ofs_; // Just for showing the tree structure use
 };
 
-class AVLTree
+class RBTree
 {
 public:
-  AVLTree():root_(nullptr){};
+  RBTree():root_(nullptr){};
   
-  ~AVLTree(){
+  ~RBTree(){
 		if(root_) {
 			_Delete(root_);
 			root_ = nullptr;
@@ -197,7 +213,7 @@ public:
 		  root_ = new Node(key);
 		  return;
     }
-		root_ = _Insert(key, root_);
+		root_ = _Insert(key, root_, nullptr);
     return;
   }
   
@@ -307,49 +323,96 @@ private:
 	}
 
 	int _Diff(Node *parent) {
-		int right = _Height(parent->right_);
-		int left = _Height(parent->left_);
+		int right = _Diff(parent->right_);
+		int left = _Diff(parent->left_);
 		int diff = left - right;
 		//		cout << parent->key_ << ": " << left << " vs " << right << " diff: " << diff << endl;
 		return diff;
 	}
 	
-  Node *_Insert(int key, Node *parent) {
+	int _BHeight(Node *parent) {
+		int height = 0;
+		int height_left = 0;
+		int height_right = 0;
+	
+		if(!parent) {
+			height = 1;
+		} else {
+			height_left = _BHeight(parent->left_);
+			height_right = _BHeight(parent->right_);
+			height = MAX(height_left, height_right) + (parent->IsBlack()?1:0);
+		}
+		return height;
+	}
+
+	int _BDiff(Node *parent) {
+		int right = _BDiff(parent->right_);
+		int left = _BDiff(parent->left_);
+		int diff = left - right;
+		//		cout << parent->key_ << ": " << left << " vs " << right << " diff: " << diff << endl;
+		return diff;
+	}
+	
+  Node *_Insert(int key, Node *parent, Node *grandpa) {
     Node *ret_node = parent;
+    Node *insert_node = nullptr;
     if(key == parent->key_) {
     } else if(key < parent->key_) {
       if(parent->left_) {
-        parent->left_ = _Insert(key, parent->left_);
+        parent->left_ = _Insert(key, parent->left_, parent);
       } else {
         parent->left_ = new Node(key);
         cout << parent->left_->key_ << " <- " << parent->key_ << endl;
+        insert_node = parent->left_;
       }
     } else {
       if(parent->right_) {
-        parent->right_ = _Insert(key, parent->right_);
+        parent->right_ = _Insert(key, parent->right_, parent);
       } else {
         parent->right_ = new Node(key);
         cout << parent->key_ << " -> " << parent->right_->key_  <<  endl;
+        insert_node = parent->right_;
       }
     }
-
-    int diff = _Diff(parent);
-    if(diff > 1) {
-      diff = _Diff(parent->left_);
-      if(diff > 0) {
-        ret_node = _RightRotate(parent);
+    ret_node = parent;
+    if(insert_node) {
+      if(!grandpa) { // insert on root, just recolor => black
+        cout << "Insert on root, just recolor root -> BLACK" << endl;
+        parent->TurnBlack();
       } else {
-        ret_node = _LRRotate(parent);
-      }
-    } else if(diff < -1){
-      diff = _Diff(parent->right_);
-      if(diff < 0) {
-        ret_node = _LeftRotate(parent);
-      } else {
-        ret_node = _RLRotate(parent);
+        if(parent->IsBlack()){ // parent is black, just insert a red node 
+  				cout << "Insert on BLACK parent, done!" << endl;
+        } else { // parent is red, red conflict!
+          cout << "RED parent: " << parent->key_ << " , RED conflict!" << endl;
+          Node *uncle = (grandpa->left_ == parent)?grandpa->right_:grandpa->left_; 
+          if(uncle&&uncle->IsRed()) {
+            cout << "Parent and uncle are both RED, push RED to Top" << endl;
+            uncle->TurnBlack();
+            parent->TurnBlack();
+            grandpa->TurnRed();
+          } else {
+            cout << "Red parent with Black uncle, try 4 cases to process" << endl;
+            bool on_left = (parent->left_&&parent->left_==insert_node)?true:false;
+            int diff = 0;
+						if(diff > 1) {
+							diff = _Diff(parent->left_);
+							if(diff > 0) {
+								ret_node = _RightRotate(parent);
+							} else {
+								ret_node = _LRRotate(parent);
+							}
+						} else if(diff < -1){
+							diff = _Diff(parent->right_);
+							if(diff < 0) {
+								ret_node = _LeftRotate(parent);
+							} else {
+								ret_node = _RLRotate(parent);
+							}
+						}
+          }
+        }
       }
     }
-    
     return ret_node;
   }
   
@@ -523,10 +586,10 @@ private:
 class AVLTree_GTest : public ::testing::Test {
 
 protected:
-  AVLTree *tree_;
+  RBTree *tree_;
   int leafs_key_[7] = {100, 50, 250, 20, 70, 200, 300};
   virtual void SetUp(){
-    tree_ = new AVLTree();
+    tree_ = new RBTree();
     for(unsigned int i = 0; i < (sizeof(leafs_key_)/sizeof(leafs_key_[0])); i ++) {
       tree_->Insert(leafs_key_[i]);
     }
@@ -547,7 +610,7 @@ TEST_F(AVLTree_GTest, RandomNode_GTest){
   const int node_num = 50;
   const int node_val_max = 100;
   const int node_val_min = 0;
-  AVLTree *tree = new AVLTree();
+  RBTree *tree = new RBTree();
   RandBox *rbox = new RandBox(node_num, node_val_min, node_val_max);
   bool ret = rbox->GetRand(&val);
   int insert_cnt = 0;
