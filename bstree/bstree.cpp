@@ -3,7 +3,9 @@
 #include <string>
 #include <queue>
 #include <stdlib.h>
-
+#include <vector>
+#include <algorithm>
+#include <time.h>
 #include <gtest/gtest.h>
 
 using std::cout;
@@ -11,6 +13,8 @@ using std::cin;
 using std::endl;
 
 using std::queue;
+using std::vector;
+using std::find;
 
 #define MAX(x, y) (x>y?x:y)
 
@@ -62,6 +66,110 @@ int Random(int start, int end){
   return rand_val;
 }
 
+class RandBox
+{
+public:
+  RandBox(int size, int min, int max):size_(size), min_(min), max_(max), dis_(max - min) {
+    if(size_ > dis_) {
+      cout << "size : " << size << " must not larger than dis=(max-min): " << dis_ << endl;
+      assert(0);
+    }
+    bool *marks = new bool[size_];
+    for(int i; i < size_; i ++) {
+      marks[i] = false;
+    }
+    orig_ = new int[size];
+    cout << "min: " << min_ << " max: " << max_ << " dis: " << dis_ << endl;
+		cout << "Initial rand vals:" << endl;
+    for(int i = 0; i < size_; i ++) {
+      int val = rand()%dis_;
+      int limit = dis_ + 1;
+      do {
+				vector<int>::iterator itor = find(rands_.begin(), rands_.end(), val);
+        if(itor != rands_.end()) {
+          val ++;
+          val %= dis_;
+          limit --;
+        } else {
+          orig_[i] = val;
+					rands_.push_back(orig_[i]);
+					cout << orig_[i]+min_ << " ";
+					break;
+        }
+      }while(limit);
+      
+      if(!limit) {
+        cout << "create rand failed!" << endl;
+      }
+    }
+    cout << endl;
+    delete marks;
+  }
+  
+  ~RandBox(){
+    rands_.clear();
+    size_ = 0;
+    min_ = 0;
+    max_ = 0;
+    dis_ = 0;
+    delete orig_;
+  };
+
+  void Shake(unsigned int seed) {
+    rands_.clear();
+    srand(seed);
+    int *rand_pos = new int[size_];
+    bool *marks = new bool[size_];
+    for(int i = 0; i < size_; i ++) {
+      marks[i] = false;
+    }
+    for(int i = 0; i < size_; i ++) {
+      int pos = rand()%size_;
+      int limit = size_;
+      do {
+        if(marks[pos]) {
+          pos ++;
+          pos %= size_;
+          limit --;
+        } else {
+          marks[pos] = true;
+          rand_pos[i] = pos;
+          break;
+        }
+      }while(limit);
+    }
+    cout << "Shake seed: " << seed << endl;
+    vector<int>::iterator itor;
+		for(int i = 0; i < size_; i ++) {
+		  int pos = rand_pos[i];
+		  cout << orig_[pos] << " ";
+		  rands_.push_back(orig_[pos]);
+		}
+		cout << endl;
+		delete marks;
+		delete rand_pos;
+  }
+
+  bool GetRand(int *val) {
+    bool ret = false;
+    if(!rands_.empty()) {
+      *val = (rands_.back() + min_);
+      rands_.pop_back();
+      ret = true;
+    }
+    return ret;
+  }
+
+private:
+  
+  int size_;
+  int min_;
+  int max_;
+  int dis_;
+  int *orig_;
+  vector<int> rands_;
+};
+
 class Node
 {
 public:
@@ -99,6 +207,10 @@ public:
 			root_ = nullptr;
 		}
 	};
+
+  bool IsEmpty() {
+    return (root_ == nullptr);
+  }
   
   void Insert(int key) {
     if(!root_) {
@@ -129,7 +241,7 @@ public:
 			else
 				ret =  false;
 		}
-		cout << "del: " << key << " ret: " << ret << endl;
+//		cout << "del: " << key << " ret: " << ret << endl;
 		return ret;
   }
 
@@ -239,11 +351,12 @@ private:
   Node *_Delete(int key, Node *parent) {
     Node *del_node = nullptr;
     if(key == parent->key_) {
-      cout << "Binggo => " << key << endl;
+      cout << "Binggo <= " << key << endl;
       Node *swap_node = nullptr;
 		  Node *swap_parent = parent;
       if(parent->IsLeaf()) { // First delete node is a leaf.
         cout << parent->key_ << " is a leaf, just del the leaf" << endl;
+        cout << "Del => " << parent->key_ << endl;
         delete parent;
 			  del_node = nullptr;
       } else { // First delete node is not leaf, swap delete node
@@ -262,9 +375,8 @@ private:
 					};
 					cout << "Right most node: " << swap_node->key_ << " in " << parent->key_ << " left sub tree" << endl;
 				}
-				
 				if(swap_node->IsLeaf()) {
-					cout << "Swap node is a leaf, just del the swap node." << endl;
+					cout << "Swap node is a leaf, just del the swap node: " << swap_node->key_ << endl;
 					if(swap_parent != parent) {
 						parent->key_ = swap_node->key_;
 					} else {
@@ -275,6 +387,7 @@ private:
 					} else {
 						swap_parent->right_ = nullptr;
 					}
+					cout << "Del => " << swap_node->key_ << endl;
 					delete swap_node;
 				} else {
 					cout << "Swap " << parent->key_ << " with " << swap_node->key_ << endl;
@@ -377,65 +490,55 @@ TEST_F(BSTree_GTest, TraverseTopBottom_GTest){
   tree_->TraverseTopBottom();
 }
 
+TEST_F(BSTree_GTest, RandBox_GTest){
+  int rand_val = 0;
+  RandBox *box = new RandBox(100, 0, 101);
+  box->Shake(0);
+  box->Shake(0);
+  box->Shake(unsigned(time(nullptr)));
+  
+  bool ret = box->GetRand(&rand_val);
+  cout << "GetRand:" << endl;
+  while(ret) {
+		cout << rand_val << " ";
+    ret = box->GetRand(&rand_val);
+  }
+  cout << endl;
+}
+
 TEST_F(BSTree_GTest, RandomNode_GTest){
-  const int node_num = 100;
+  int val = 0;
+  const int node_num = 10;
   const int node_val_max = 100;
   const int node_val_min = 0;
   BSTree *tree = new BSTree();
-  int *rand_nodes = (int*)malloc(node_num*sizeof(int));
-  int *rand_idx = (int*)malloc(node_num*sizeof(int));
-  nodes_marks = (bool*)malloc(node_val_max*sizeof(bool));
-  for(int i = 0; i < node_val_max; i ++) {
-    nodes_marks[i] = false;
+  RandBox *rbox = new RandBox(node_num, node_val_min, node_val_max);
+  bool ret = rbox->GetRand(&val);
+  int insert_cnt = 0;
+  while(ret){
+    tree->Insert(val);
+    ret = rbox->GetRand(&val);
+    insert_cnt ++;
   }
-  cout << "random nodes: :" << endl;
-  for(int i = 0; i < node_num; i ++) {
-    rand_nodes[i] = Random(node_val_min, node_val_max);
-    cout << rand_nodes[i]<< " ";
-  }
-  cout << endl;
-  for(int i = 0; i < node_num; i ++) {
-    tree->Insert(rand_nodes[i]);
-  }
-  
-  tree->TraverseTopBottom();
-  int node_cnt = node_num;
-  delete []nodes_marks;
-  nodes_marks = (bool*)malloc(node_num*sizeof(bool));
-  for(int i = 0; i < node_num; i ++) {
-    nodes_marks[i] = false;
-  }
-  cout << "random index :" << endl;
-  for(int i = 0; i < node_num; i ++) {
-    int idx = Random(0, node_num);
-    rand_idx[i] = idx;
-    cout << idx << " ";
-  }
-  cout << endl;
-  
-  cout << "random to del :" << endl;
-  for(int i = 0; i < node_num; i ++) {
-    cout << rand_nodes[rand_idx[i]]<< " ";
-  }
-  cout << endl;
-	cout << "Tree: " << endl;
+  EXPECT_EQ(insert_cnt, node_num);
   tree->TraversePreOrder();
-  for(int i = 0; i < node_num; i ++) {
-    int node_key = rand_nodes[rand_idx[i]];
-    bool ret = tree->Delete(node_key);
-    if(ret) {
-      node_cnt --;
-      cout << "Success del: " << node_key << " " << node_cnt << " nodes left" << endl;
-    } else {
-      cout << "Failed del: " << node_key << endl;
-    }
-    tree->TraversePreOrder();
-  }
   tree->TraverseTopBottom();
-  delete []nodes_marks;
-  delete []rand_nodes;
-}
+  
 
+  rbox->Shake(0);
+  ret = rbox->GetRand(&val);
+  int del_cnt = 0;
+  while(ret){
+    EXPECT_TRUE(tree->Delete(val));
+    ret = rbox->GetRand(&val);
+    del_cnt ++;
+  }
+  EXPECT_EQ(del_cnt, node_num);
+  EXPECT_TRUE(tree->IsEmpty());
+  
+	tree->TraversePreOrder();
+  tree->TraverseTopBottom();
+}
 
 TEST_F(BSTree_GTest, DeleteNode_GTest){
   int input;
@@ -453,7 +556,6 @@ TEST_F(BSTree_GTest, DeleteNode_GTest){
     tree_->TraverseTopBottom();
   }while(ret);
 }
-
 
 int main(int argc, char *argv[])
 {
