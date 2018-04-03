@@ -73,6 +73,15 @@ public:
     key_ = 0;
     ofs_ = 0;
   };
+  
+	bool IsLeaf() {
+	  bool leaf = true;
+	  if(this->left_||this->right_){
+	    leaf = false;
+	  }
+	  return leaf;
+	}
+	
   int key_;
   Node *left_;
   Node *right_;
@@ -233,46 +242,48 @@ private:
       cout << "Binggo => " << key << endl;
       Node *swap_node = nullptr;
 		  Node *swap_parent = parent;
-      if(!(parent->left_)&&!(parent->right_)) {
+      if(parent->IsLeaf()) { // First delete node is a leaf.
         cout << parent->key_ << " is a leaf, just del the leaf" << endl;
         delete parent;
-			  return nullptr;
-      } else if(parent->right_) {
-        swap_node = parent->right_;
-        while(swap_node->left_){
-          swap_parent = swap_node;
-          swap_node = swap_node->left_;
-        };
-        cout << "Left most node: " << swap_node->key_ << " in " << parent->key_ << " right sub tree" << endl;
-      } else {
-        swap_node = parent->left_;
-        while(swap_node->right_){
-          swap_parent = swap_node;
-          swap_node = swap_node->right_;
-        };
-        cout << "Right most node: " << swap_node->key_ << " in " << parent->key_ << " left sub tree" << endl;
-      }
-
-			if(!(swap_node->left_)&&!(swap_node->right_)) {
-				cout << "Swap node is a leaf, just del the swap node." << endl;
-        if(swap_parent != parent) {
-  				parent->key_ = swap_node->key_;
-        } else {
-          swap_parent->key_ = swap_node->key_;
-        }
-				if(swap_parent->left_ == swap_node) {
-					swap_parent->left_ = nullptr;
+			  del_node = nullptr;
+      } else { // First delete node is not leaf, swap delete node
+				if(parent->right_) {
+					swap_node = parent->right_;
+					while(swap_node->left_){
+						swap_parent = swap_node;
+						swap_node = swap_node->left_;
+					};
+					cout << "Left most node: " << swap_node->key_ << " in " << parent->key_ << " right sub tree" << endl;
 				} else {
-					swap_parent->right_ = nullptr;
+					swap_node = parent->left_;
+					while(swap_node->right_){
+						swap_parent = swap_node;
+						swap_node = swap_node->right_;
+					};
+					cout << "Right most node: " << swap_node->key_ << " in " << parent->key_ << " left sub tree" << endl;
 				}
-				delete swap_node;
-			} else {
-				cout << "Swap " << parent->key_ << " with " << swap_node->key_ << endl;
-				cout << "Swap to del " << swap_node->key_ << endl;
-				parent->key_ = swap_node->key_;
-				_Delete(swap_node->key_, swap_node);
-			}
-			return parent;
+				
+				if(swap_node->IsLeaf()) {
+					cout << "Swap node is a leaf, just del the swap node." << endl;
+					if(swap_parent != parent) {
+						parent->key_ = swap_node->key_;
+					} else {
+						swap_parent->key_ = swap_node->key_;
+					}
+					if(swap_parent->left_ == swap_node) {
+						swap_parent->left_ = nullptr;
+					} else {
+						swap_parent->right_ = nullptr;
+					}
+					delete swap_node;
+				} else {
+					cout << "Swap " << parent->key_ << " with " << swap_node->key_ << endl;
+					cout << "Swap to del " << swap_node->key_ << endl;
+					parent->key_ = swap_node->key_;
+					_Delete(swap_node->key_, swap_node);
+				}
+        del_node = parent;
+      }
     } else if(key < parent->key_) {
       if(parent->left_) {
         parent->left_ = _Delete(key, parent->left_);
@@ -338,6 +349,7 @@ private:
 		}
 		return right_most;
 	}
+
 	
   Node *root_;
   queue<Node *> node_queue_;
@@ -366,8 +378,8 @@ TEST_F(BSTree_GTest, TraverseTopBottom_GTest){
 }
 
 TEST_F(BSTree_GTest, RandomNode_GTest){
-  const int node_num = 50;
-  const int node_val_max = 50;
+  const int node_num = 100;
+  const int node_val_max = 100;
   const int node_val_min = 0;
   BSTree *tree = new BSTree();
   int *rand_nodes = (int*)malloc(node_num*sizeof(int));
