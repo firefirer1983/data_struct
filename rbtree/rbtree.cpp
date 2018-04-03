@@ -1,353 +1,601 @@
 #include <assert.h>
 #include <iostream>
 #include <string>
-
+#include <queue>
+#include <stdlib.h>
+#include <vector>
+#include <algorithm>
+#include <time.h>
 #include <gtest/gtest.h>
 
-using std::cin;
 using std::cout;
+using std::cin;
 using std::endl;
 
-/*
-	           (A)        red/black tree rules:
-1. root is black
-2. nil leaf is black
-3. node is either black or red
-4. no consecutive red node
-5. all path from root to nil leaf have the same black depth
+using std::queue;
+using std::vector;
+using std::find;
 
-			   (B)        red/black tree insert rules
-1. always insert red node
+#define MAX(x, y) (x>y?x:y)
 
-2. if insert root node, root=>black -> done
+#define OFSSET_START 8
+#define LEVEL_OFFSET 4
 
-3. if parent(black) -> done
+//#define SHOW_TREE
+#ifdef SHOW_TREE
+#define OFFSET_UNIT " "
+#define NEW_LINE endl
+#else
+#define OFFSET_UNIT ""
+#define NEW_LINE "";
+#endif
 
-4. if parent(red)&&uncle(red)
-   parent=>black and grandpa=>red, recheck grand parent, push black to bottom untill the root
-   
-5. if parent(red)&&uncle(black)
-   5a: parent(left)&&node(left): 
-  i.  rightRotate
-  ii. recolor:  parent=>black, children=>red
+inline void OFFSET(int n) {
+	for(int i = 0; i < n*LEVEL_OFFSET; i++) {
+		cout << OFFSET_UNIT;
+	}
+}
 
-   5b: parent(right)&&node(right):
-  i.  leftRotate
-  ii. recolor: parent=>black, children=>red
-  
-   5c: parent(left)&&node(right):
-  i. leftRotate + rightRotate
-  ii. recolor: parent=>black, children=>red
+inline void START() {
+	for(int i = 0; i < OFSSET_START; i++) {
+		cout << OFFSET_UNIT;
+	}
+}
 
-   5d: parent(right)&&node(left):
-  i. rightRotate + leftRotate
-  ii. recolor: parent=>black, children=>red   
+inline void NETLINE() {
+	cout << NEW_LINE;
+}
 
-  			(C) red/black tree delection rules:
-Rules for the nodes to be delete:
-  i. only got one child ( because it's the right most node in the left subtree or left most node in the right subtree)
- ii. left most node have no left sibling, right most node have no right sibling
-
- 
-Case 1 and Case 2 won't create double black node, So it's simple!
-
-Case 1:
-The node to be delete is RED:
-  *Simply delete it
-  *if node has a child, then replace it with the child
-
-Case 2:
-The node to be delete is BLACK, but has only one RED child:
-  *Relace the node with its child, Recolor the RED child to BLACK
-
-
-Case 3:
-The node to be delete is BLACK and has one BLACK child
-  *Replace the node with its child, and the child will become a DOUBLE BLACK node
-
-Case 3-1: (Terminal)
-  *DOUBLE BLACK node is root.
-  -- Just change DOUBLE BLACK node to BLACK node
-
-  Then Case 3-1 Terminated!
-  
-Case 3-2:
-  *DOUBLE BLACK node has a BLACK parent and a right RED sibling
-     a. Left rotate its parent
-     b. Recolor BLACK parent -> RED 
-     c. Recolor RED silbing -> BLACK
-     
-  Case 3-2 -> Case 3-4 
-
-Case 3-3:
-  *DOUBLE BLACK node has a BLACK parent, and a right BLACK sibling , and the right 
-   BALCK sibling has two BLACK children
-     a. change DOUBLE BLACK node to BLACK node
-     b. change BLACK parent -> DOUBLE BLACK
-     c. change BLACK sibling -> RED
-
-   Case 3-3 -> Case 3-1
-   Case 3-3 -> Case 3-5
-
-Case 3-4: (Terminal)
-  * DOUBLE BLACK node has a RED parent , BLACK sibling with 2 BLACK children
-     a. Recolor the DOUBLE BLACK -> BLACK
-     b. Recolor the RED parent -> BLACK
-     c. Recolor the BLACK sibling -> RED
-
-  Then Case 3-4 Terminated!
-  
-Case 3-5:
-  * DOUBLE BLACK node has a BLACK sibling. BLACK sibling has a inner RED child
-     a. Right rotate the BLACK sibling
-     b. Recolor the BLACK sibling 0> RED
-     c. Recolr BLACK sibling's RED child -> BLACK
-
-Case 3-6:
-  * DOUBLE BLACK node has a BLACK sibling . BLACK sibling has a outer RED child
-     a. Left rotate its parent
-     b. Recolor its parent -> BLACK
-     c. Recolor DOUBLE BLACK node -> BLACK
-     dm Recolor its sibing outer RED child -> BLACK
-*/   
-
-class RBNode
+class RandBox
 {
 public:
-  RBNode(int key)  : key_(key), black_(false), left_(nullptr), right_(nullptr){};
+  RandBox(int size, int min, int max):size_(size), min_(min), max_(max), dis_(max - min) {
+    if(size_ > dis_) {
+      cout << "size : " << size << " must not larger than dis=(max-min): " << dis_ << endl;
+      assert(0);
+    }
+    bool *marks = new bool[size_];
+    for(int i; i < size_; i ++) {
+      marks[i] = false;
+    }
+    orig_ = new int[size];
+    cout << "min: " << min_ << " max: " << max_ << " dis: " << dis_ << endl;
+		cout << "Initial rand vals:" << endl;
+    for(int i = 0; i < size_; i ++) {
+      int val = rand()%dis_;
+      int limit = dis_ + 1;
+      do {
+				vector<int>::iterator itor = find(rands_.begin(), rands_.end(), val);
+        if(itor != rands_.end()) {
+          val ++;
+          val %= dis_;
+          limit --;
+        } else {
+          orig_[i] = val;
+					rands_.push_back(orig_[i]);
+					cout << orig_[i]+min_ << " ";
+					break;
+        }
+      }while(limit);
+      
+      if(!limit) {
+        cout << "create rand failed!" << endl;
+      }
+    }
+    cout << endl;
+    delete marks;
+  }
   
-  ~RBNode() {
+  ~RandBox(){
+    rands_.clear();
+    size_ = 0;
+    min_ = 0;
+    max_ = 0;
+    dis_ = 0;
+    delete orig_;
+  };
+
+  void Shake(unsigned int seed) {
+    rands_.clear();
+    srand(seed);
+    int *rand_pos = new int[size_];
+    bool *marks = new bool[size_];
+    for(int i = 0; i < size_; i ++) {
+      marks[i] = false;
+    }
+    for(int i = 0; i < size_; i ++) {
+      int pos = rand()%size_;
+      int limit = size_;
+      do {
+        if(marks[pos]) {
+          pos ++;
+          pos %= size_;
+          limit --;
+        } else {
+          marks[pos] = true;
+          rand_pos[i] = pos;
+          break;
+        }
+      }while(limit);
+    }
+    cout << "Shake seed: " << seed << endl;
+    vector<int>::iterator itor;
+		for(int i = 0; i < size_; i ++) {
+		  int pos = rand_pos[i];
+		  cout << orig_[pos] << " ";
+		  rands_.push_back(orig_[pos]);
+		}
+		cout << endl;
+		delete marks;
+		delete rand_pos;
+  }
+
+  bool GetRand(int *val) {
+    bool ret = false;
+    if(!rands_.empty()) {
+      *val = (rands_.back() + min_);
+      rands_.pop_back();
+      ret = true;
+    }
+    return ret;
+  }
+
+private:
+  
+  int size_;
+  int min_;
+  int max_;
+  int dis_;
+  int *orig_;
+  vector<int> rands_;
+};
+
+class Node
+{
+public:
+  Node(int key)  : key_(key), left_(nullptr), right_(nullptr) {};
+  
+  ~Node() {
     left_ = nullptr;
     right_ = nullptr;
+    key_ = 0;
+    ofs_ = 0;
   };
-  int key_;
-  bool black_;
-  RBNode *left_;
-  RBNode *right_;
   
-  void Red() {
-    this->black_ = false;
-  }
-  
-  bool IsRed() {
-    return (this->black_ == false);
-  }
-  
-  void Black() {
-    this->black_ = true;
-  }
-  
-  bool IsBlack() {
-    return this->black_;
-  }
-  
-  void ReColor() {
-    this->Black();
-    if(this->left_) {
-      this->left_->Red();
-    }
-    if(this->right_) {
-      this->right_->Red();
-    }
-  }
-
-  bool RedConflict() {
-    if(this->IsRed()) {
-	  if((this->left_ && this->left_->IsRed()) || (this->right_ && this->right_->IsRed())) {
-	  	return true;
+	bool IsLeaf() {
+	  bool leaf = true;
+	  if(this->left_||this->right_){
+	    leaf = false;
 	  }
-    }
-	return false;
-  }
+	  return leaf;
+	}
+	
+  int key_;
+  Node *left_;
+  Node *right_;
+	int ofs_; // Just for showing the tree structure use
 };
-  
 
-class RBTree
+class AVLTree
 {
 public:
-  RBTree() :root_(nullptr){};
+  AVLTree():root_(nullptr){};
   
-  ~RBTree() {
-    Delete(root_);
-  };
+  ~AVLTree(){
+		if(root_) {
+			_Delete(root_);
+			root_ = nullptr;
+		}
+	};
 
-  void Delete(RBNode *node) {
-    if(node){
-      Delete(node->left_);
-      Delete(node->right_);
-      delete node;
+  bool IsEmpty() {
+    return (root_ == nullptr);
+  }
+  
+  void Insert(int key) {
+    if(!root_) {
+		  root_ = new Node(key);
+		  return;
     }
+		root_ = _Insert(key, root_);
+    return;
+  }
+  
+  bool Delete(int key) {
+    Node *del_node = nullptr;
+		bool ret = false;
+    if(!root_) {
+      cout << "Delete failed on a empty tree" << endl;
+      return false;
+    }
+		if((key == root_->key_)&&\
+			 (!root_->left_)&&\
+			 (!root_->right_)){
+			 root_ = _Delete(key, root_);
+			 ret = true;
+		} else {
+			del_node = _Delete(key, root_);
+			root_ = del_node;
+			if(del_node)
+				ret =  true;
+			else
+				ret =  false;
+		}
+//		cout << "del: " << key << " ret: " << ret << endl;
+		return ret;
   }
 
+  void TraverseInOrder() {
+    cout << "In Order:" << endl;
+    _InTravse(root_);
+    cout << endl;
+  }
+  
+  void TraversePreOrder() {
+    cout << "Pre Order:" << endl;
+    _PreTravse(root_);
+    cout << endl;
+  }
+  
+  void TraversePostOrder() {
+    cout << "Post Order:" << endl;
+    _PostTravse(root_);
+    cout << endl;
+  }
+	
+  void TraverseTopBottom() {
+    if(!root_) {
+			cout << "Empty Tree, Can't Traverse!" << endl;
+			return ;
+    }
+    cout << "Top Bottom:" << endl;
+    int node_cnt = 0;
+    int height_pre = _Height(root_);
+    int height_cur = height_pre;
+    root_->ofs_ = height_cur;
+    node_queue_.empty();
+    node_queue_.push(root_);
+    node_cnt ++;
+    START();
+    while(node_queue_.size()) {
+      Node *cur = node_queue_.front();
+      height_cur = _Height(cur);
+      //cout << cur->key_ << ": " << height_cur << endl;
+      if(cur && cur->left_) {
+        cur->left_->ofs_ = cur->ofs_ - 1;
+        node_queue_.push(cur->left_);
+			  node_cnt ++;
+      }
+      if(cur && cur->right_) {
+        cur->right_->ofs_ = cur->ofs_ + 1;
+        node_queue_.push(cur->right_);
+				node_cnt ++;
+      }
+      cout << cur->key_ << " ";
+      //cout << "[" << cur->ofs_ << "]" << " ";
+      OFFSET(cur->ofs_);
+      node_queue_.pop();
+      if(height_pre != height_cur) {
+        NETLINE();
+        START();
+        height_pre = height_cur;
+      }
+    }
+    cout << "Total: " << node_cnt << " nodes" << endl;
+  }
+  
+  int Height(void) {
+    int height = 0;
+    height = _Height(root_);
+    return height;
+  }
+  
+private:
+	int _Height(Node *parent) {
+		int height = 0;
+		int height_left = 0;
+		int height_right = 0;
+	
+		if(!parent) {
+			height = 1;
+		} else {
+			height_left = _Height(parent->left_);
+			height_right = _Height(parent->right_);
+			height = MAX(height_left, height_right) + 1;
+		}
+		return height;
+	}
 
-  RBNode *Insert(int key, RBNode *parent, RBNode *uncle, RBNode *grandpa) {
-    RBNode *root = nullptr;
-	RBNode *inserted = nullptr;
-    if(!parent) {
-      root = new RBNode(key);
-	  root->Black();
+	int _Diff(Node *parent) {
+		int right = _Height(parent->right_);
+		int left = _Height(parent->left_);
+		int diff = left - right;
+		//		cout << parent->key_ << ": " << left << " vs " << right << " diff: " << diff << endl;
+		return diff;
+	}
+	
+  Node *_Insert(int key, Node *parent) {
+    Node *ret_node = parent;
+    if(key == parent->key_) {
     } else if(key < parent->key_) {
       if(parent->left_) {
-        parent->left_ = Insert(key, parent->left_, parent->right_, parent);
+        parent->left_ = _Insert(key, parent->left_);
       } else {
-        parent->left_ = new RBNode(key);
-        cout<< "[" << key << "]" << "<-"<< "[" << parent->key_ << "]" <<  endl;
+        parent->left_ = new Node(key);
+        cout << parent->left_->key_ << " <- " << parent->key_ << endl;
       }
-	  inserted = parent->left_;
     } else {
       if(parent->right_) {
-        parent->right_ = Insert(key, parent->right_, parent->left_, parent);
+        parent->right_ = _Insert(key, parent->right_);
       } else {
-        parent->right_ = new RBNode(key);
-        cout<<"[" << parent->key_ <<"]" << "->" << "[" << key << "]" << endl;
+        parent->right_ = new Node(key);
+        cout << parent->key_ << " -> " << parent->right_->key_  <<  endl;
       }
-	  inserted = parent->right_;
+    }
+
+    int diff = _Diff(parent);
+    if(diff > 1) {
+      diff = _Diff(parent->left_);
+      if(diff > 0) {
+        ret_node = _RightRotate(parent);
+      } else {
+        ret_node = _LRRotate(parent);
+      }
+    } else if(diff < -1){
+      diff = _Diff(parent->right_);
+      if(diff < 0) {
+        ret_node = _LeftRotate(parent);
+      } else {
+        ret_node = _RLRotate(parent);
+      }
     }
     
-    if(parent) {
-	  if(parent->RedConflict()) { // red confict
-	    printf("parent[%d] child[%d] red confict\n", parent->key_, inserted->key_);
-	  	if(uncle&&uncle->IsRed()) { // red uncle
-	  	  cout << "Red uncle => Push black to bottom" << endl;
-	  	  parent->Black();
-	  	  uncle->Black();
-	  	  if(grandpa) {
-	  	    grandpa->Red();
-			printf("[color-flip] parent[%d]=>black uncle[%d]=>black grandpa[%d]=>red\n",parent->key_,uncle->key_,grandpa->key_);
-	  	  }
-	  	  root = parent;
-	  	} else {
-		  cout << "Black uncle => Do rotate" << endl;
-	  	}
-	  } else {
-	  	root = parent;
-	  }
-	  
-      if((parent->left_&&parent->left_->RedConflict())||(parent->right_&&parent->right_->RedConflict())) {
-	    if(parent->left_&&parent->left_->RedConflict()) {
-		  printf("child[%d] red conflit!\n",parent->left_->key_);
-	    }
-	    if(parent->right_&&parent->right_->RedConflict()) {
-		  printf("child[%d] red conflit!\n",parent->right_->key_);
-	    }
-        if(_Diff(parent) > 1) {
-          cout << "Unbalance: " << _Height(root->left_) << " << [" <<root->key_ << "] >> " << _Height(root->right_) << " -> diff: " << _Diff(root) << endl;
-          if(_Diff(parent->left_) > 0) {
-            root = _RightRotate(parent);
-          } else {
-            root = _LRRotate(parent);
-          }
-          root->ReColor();
-          cout << _Height(root->left_) << " << [" <<root->key_ << "] >> " << _Height(root->right_) << " -> diff: " << _Diff(root) << endl;
-        } else if(_Diff(parent) < -1) {
-          cout << "Unbalance: " << _Height(root->left_) << " << [" <<root->key_ << "] >> " << _Height(root->right_) << " -> diff: " << _Diff(root) << endl;
-          if(_Diff(parent->right_) < 0) {
-          root = _LeftRotate(parent);
-          } else {
-          root = _RLRotate(parent);
-          }
-          root->ReColor();
-          cout << _Height(root->left_) << " << [" <<root->key_ << "] >> " << _Height(root->right_) << " -> diff: " << _Diff(root) << endl;
-        } else {
-          root = parent;
-        }
-      }else {
-	    root = parent;
+    return ret_node;
+  }
+  
+  Node *_Delete(int key, Node *parent) {
+    Node *del_node = nullptr;
+    if(key == parent->key_) {
+      cout << "Binggo <= " << key << endl;
+      Node *swap_node = nullptr;
+		  Node *swap_parent = parent;
+      if(parent->IsLeaf()) { // First delete node is a leaf.
+        cout << parent->key_ << " is a leaf, just del the leaf" << endl;
+        cout << "Del => " << parent->key_ << endl;
+        delete parent;
+			  del_node = nullptr;
+      } else { // First delete node is not leaf, swap delete node
+				if(parent->right_) {
+					swap_node = parent->right_;
+					while(swap_node->left_){
+						swap_parent = swap_node;
+						swap_node = swap_node->left_;
+					};
+					cout << "Left most node: " << swap_node->key_ << " in " << parent->key_ << " right sub tree" << endl;
+				} else {
+					swap_node = parent->left_;
+					while(swap_node->right_){
+						swap_parent = swap_node;
+						swap_node = swap_node->right_;
+					};
+					cout << "Right most node: " << swap_node->key_ << " in " << parent->key_ << " left sub tree" << endl;
+				}
+				if(swap_node->IsLeaf()) {
+					cout << "Swap node is a leaf, just del the swap node: " << swap_node->key_ << endl;
+					if(swap_parent != parent) {
+						parent->key_ = swap_node->key_;
+					} else {
+						swap_parent->key_ = swap_node->key_;
+					}
+					if(swap_parent->left_ == swap_node) {
+						swap_parent->left_ = nullptr;
+					} else {
+						swap_parent->right_ = nullptr;
+					}
+					cout << "Del => " << swap_node->key_ << endl;
+					delete swap_node;
+				} else {
+					cout << "Swap " << parent->key_ << " with " << swap_node->key_ << endl;
+					cout << "Swap to del " << swap_node->key_ << endl;
+					parent->key_ = swap_node->key_;
+					_Delete(swap_node->key_, swap_node);
+				}
+        del_node = parent;
       }
-	}
-	return root;
+    } else if(key < parent->key_) {
+      if(parent->left_) {
+        parent->left_ = _Delete(key, parent->left_);
+				del_node = parent;
+      }
+    } else {
+      if(parent->right_) {
+        parent->right_ = _Delete(key, parent->right_);
+				del_node = parent;
+      }
+    }
+
+    int diff = _Diff(parent);
+    if(diff > 1) {
+      diff = _Diff(parent->left_);
+      if(diff > 0) {
+        del_node = _RightRotate(parent);
+      } else {
+        del_node = _LRRotate(parent);
+      }
+    } else if(diff < -1){
+      diff = _Diff(parent->right_);
+      if(diff < 0) {
+        del_node = _LeftRotate(parent);
+      } else {
+        del_node = _RLRotate(parent);
+      }
+    }
+    return del_node;
   }
 
-  int _Diff(RBNode *parent) {
+  void _Delete(Node *parent) {
+    if(parent->left_) {
+      _Delete(parent->left_);
+    }
+    if(parent->right_) {
+      _Delete(parent->right_);
+    }
+    if(!(parent->left_)&&!(parent->right_)) {
+      delete parent;
+    }
+  }
+	
+  void _InTravse(Node *parent) {
     if(parent) {
-      int right = _Height(parent->right_);
-      int left = _Height(parent->left_);
-      int diff = left - right;
-  //    cout << parent->key_ << ": " << left << " vs " << right << " diff: " << diff << endl;
-      return diff;
-    } else {
-	  return 0;
+	    _InTravse(parent->left_);
+      cout << parent->key_ << " ";
+		  EXPECT_LT(_Diff(parent), 2);
+      _InTravse(parent->right_);
     }
   }
   
-  RBNode *_LeftRotate(RBNode *node) { // right rotation once!
+  void _PreTravse(Node *parent) {
+    if(parent) {
+      cout << parent->key_ << " ";
+      EXPECT_LT(_Diff(parent), 2);
+      _PreTravse(parent->left_);
+      _PreTravse(parent->right_);
+    }
+  }
+  
+  void _PostTravse(Node *parent) {
+    if(parent) {
+	    _PostTravse(parent->left_);
+      _PostTravse(parent->right_);
+	    cout << parent->key_ << " ";
+      EXPECT_LT(_Diff(parent), 2);
+    }
+  }
+
+	Node *_LeftMostNode(Node *parent) {
+		Node *left_most = parent;
+		if(parent->left_) {
+			left_most = _LeftMostNode(parent->left_);
+		}
+		return left_most;
+	}
+	
+	Node *_RightMostNode(Node *parent) {
+		Node *right_most = parent;
+		if(parent->right_) {
+			right_most = _RightMostNode(parent->right_);
+		}
+		return right_most;
+	}
+	
+  Node *_LeftRotate(Node *node) {
     cout << "_LeftRotate["<<node->key_<<"]" << endl;
-    RBNode *root = node->right_;
+    Node *root = node->right_;
     node->right_ = root->left_;
     root->left_ = node;
     return root;
   }
   
-  RBNode *_RightRotate(RBNode *node) { // right rotation once!
+  Node *_RightRotate(Node *node) {
     cout << "_RightRotate["<<node->key_<<"]" << endl;
-    RBNode *root = node->left_;
+    Node *root = node->left_;
     node->left_ = root->right_;
     root->right_ = node;
     return root;
   }
-
   
-  RBNode *_LRRotate(RBNode *node) { // right rotation once!
+  Node *_LRRotate(Node *node) {
     cout << "_LRRotate["<<node->key_<<"]" << endl;
-	node->left_ = _LeftRotate(node->left_);
+    node->left_ = _LeftRotate(node->left_);
     return _RightRotate(node);
-	
   }
   
-  RBNode *_RLRotate(RBNode *node) { // right rotation once!
+  Node *_RLRotate(Node *node) {
     cout << "_RLRotate["<<node->key_<<"]" << endl;
-	node->right_ = _RightRotate(node->right_);
+    node->right_ = _RightRotate(node->right_);
     return _LeftRotate(node);
   }
-
-  void Traverse() {
-    _Traverse(root_);
-    cout << endl;
-  }
-  
-  void _Traverse(RBNode *node) {
-    if(node) {
-      cout << node->key_ << " " << " h:" << _Height(node) << " color: " << (node->black_?"Black":"Red")<< endl;
-      _Traverse(node->left_);
-      _Traverse(node->right_);
-    }
-  }
-  
-  int _MAX(int x, int y) {
-    return (x>y?x:y);
-  }
-  
-  int _MIN(int x, int y) {
-    return (x>y?y:x);
-  }
-
-  int _Height(RBNode *node) {
-    int left_height = 0;
-    int right_height = 0;
-    int height = 0;
-    if(!node) {
-      height = 0;
-    } else {
-      left_height = _Height(node->left_);
-      right_height = _Height(node->right_);
-      height = _MAX(left_height, right_height) + 1;
-    }
-    return height;
-  }
-  RBNode *root_;
+	
+  Node *root_;
+  queue<Node *> node_queue_;
 };
+
+class AVLTree_GTest : public ::testing::Test {
+
+protected:
+  AVLTree *tree_;
+  int leafs_key_[7] = {100, 50, 250, 20, 70, 200, 300};
+  virtual void SetUp(){
+    tree_ = new AVLTree();
+    for(unsigned int i = 0; i < (sizeof(leafs_key_)/sizeof(leafs_key_[0])); i ++) {
+      tree_->Insert(leafs_key_[i]);
+    }
+  }
+  
+  virtual void TearDown(){
+    delete tree_;
+  }
+};
+
+TEST_F(AVLTree_GTest, TraverseTopBottom_GTest){
+  tree_->TraversePreOrder();
+  tree_->TraverseTopBottom();
+}
+
+TEST_F(AVLTree_GTest, RandomNode_GTest){
+  int val = 0;
+  const int node_num = 50;
+  const int node_val_max = 100;
+  const int node_val_min = 0;
+  AVLTree *tree = new AVLTree();
+  RandBox *rbox = new RandBox(node_num, node_val_min, node_val_max);
+  bool ret = rbox->GetRand(&val);
+  int insert_cnt = 0;
+  while(ret){
+    tree->Insert(val);
+    ret = rbox->GetRand(&val);
+    insert_cnt ++;
+  }
+  EXPECT_EQ(insert_cnt, node_num);
+  tree->TraversePreOrder();
+  tree->TraverseTopBottom();
+  
+
+  rbox->Shake(0);
+  ret = rbox->GetRand(&val);
+  int del_cnt = 0;
+  while(ret){
+    EXPECT_TRUE(tree->Delete(val));
+    ret = rbox->GetRand(&val);
+    del_cnt ++;
+    tree->TraversePreOrder();
+  }
+  EXPECT_EQ(del_cnt, node_num);
+  EXPECT_TRUE(tree->IsEmpty());
+  
+	tree->TraversePreOrder();
+  tree->TraverseTopBottom();
+}
+
+TEST_F(AVLTree_GTest, DeleteNode_GTest){
+  int input;
+  bool ret = false;
+  do {
+    cout << "Please input node key to delete: " << endl;
+    cin >> input;
+    ret = tree_->Delete(input);
+    if(!ret) {
+      cout << "Delete " << input << " failed!" << endl;
+    } else {
+      cout << "Delete " << input << " Success!" << endl;
+    }
+    tree_->TraversePreOrder();
+    tree_->TraverseTopBottom();
+  }while(ret);
+}
 
 int main(int argc, char *argv[])
 {
-  RBTree *tree_ = new RBTree();
-  int input_key = 0;
-  do {
-    cout << "Please input value to add to the tree: " << endl;
-    cin >> input_key;
-    tree_->root_ = tree_->Insert(input_key, tree_->root_, nullptr, nullptr);
-    if(tree_->root_->IsRed())
-      tree_->root_->Black();
-    tree_->Traverse(); 
-  }while(1);
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
 }
-
