@@ -176,12 +176,12 @@ public:
 	int ofs_; // Just for showing the tree structure use
 };
 
-class BSTree
+class AVLTree
 {
 public:
-  BSTree():root_(nullptr){};
+  AVLTree():root_(nullptr){};
   
-  ~BSTree(){
+  ~AVLTree(){
 		if(root_) {
 			_Delete(root_);
 			root_ = nullptr;
@@ -289,8 +289,7 @@ public:
     height = _Height(root_);
     return height;
   }
-
-	
+  
 private:
 	int _Height(Node *parent) {
 		int height = 0;
@@ -307,9 +306,17 @@ private:
 		return height;
 	}
 
+	int _Diff(Node *parent) {
+		int right = _Height(parent->right_);
+		int left = _Height(parent->left_);
+		int diff = left - right;
+		//		cout << parent->key_ << ": " << left << " vs " << right << " diff: " << diff << endl;
+		return diff;
+	}
+	
   Node *_Insert(int key, Node *parent) {
+    Node *ret_node = parent;
     if(key == parent->key_) {
-    
     } else if(key < parent->key_) {
       if(parent->left_) {
         parent->left_ = _Insert(key, parent->left_);
@@ -325,8 +332,25 @@ private:
         cout << parent->key_ << " -> " << parent->right_->key_  <<  endl;
       }
     }
+
+    int diff = _Diff(parent);
+    if(diff > 1) {
+      diff = _Diff(parent->left_);
+      if(diff > 0) {
+        ret_node = _RightRotate(parent);
+      } else {
+        ret_node = _LRRotate(parent);
+      }
+    } else if(diff < -1){
+      diff = _Diff(parent->right_);
+      if(diff < 0) {
+        ret_node = _LeftRotate(parent);
+      } else {
+        ret_node = _RLRotate(parent);
+      }
+    }
     
-    return parent;
+    return ret_node;
   }
   
   Node *_Delete(int key, Node *parent) {
@@ -389,6 +413,23 @@ private:
 				del_node = parent;
       }
     }
+
+    int diff = _Diff(parent);
+    if(diff > 1) {
+      diff = _Diff(parent->left_);
+      if(diff > 0) {
+        del_node = _RightRotate(parent);
+      } else {
+        del_node = _LRRotate(parent);
+      }
+    } else if(diff < -1){
+      diff = _Diff(parent->right_);
+      if(diff < 0) {
+        del_node = _LeftRotate(parent);
+      } else {
+        del_node = _RLRotate(parent);
+      }
+    }
     return del_node;
   }
 
@@ -408,6 +449,7 @@ private:
     if(parent) {
 	    _InTravse(parent->left_);
       cout << parent->key_ << " ";
+		  EXPECT_LT(_Diff(parent), 2);
       _InTravse(parent->right_);
     }
   }
@@ -415,6 +457,7 @@ private:
   void _PreTravse(Node *parent) {
     if(parent) {
       cout << parent->key_ << " ";
+      EXPECT_LT(_Diff(parent), 2);
       _PreTravse(parent->left_);
       _PreTravse(parent->right_);
     }
@@ -425,6 +468,7 @@ private:
 	    _PostTravse(parent->left_);
       _PostTravse(parent->right_);
 	    cout << parent->key_ << " ";
+      EXPECT_LT(_Diff(parent), 2);
     }
   }
 
@@ -443,19 +487,46 @@ private:
 		}
 		return right_most;
 	}
-
+	
+  Node *_LeftRotate(Node *node) {
+    cout << "_LeftRotate["<<node->key_<<"]" << endl;
+    Node *root = node->right_;
+    node->right_ = root->left_;
+    root->left_ = node;
+    return root;
+  }
+  
+  Node *_RightRotate(Node *node) {
+    cout << "_RightRotate["<<node->key_<<"]" << endl;
+    Node *root = node->left_;
+    node->left_ = root->right_;
+    root->right_ = node;
+    return root;
+  }
+  
+  Node *_LRRotate(Node *node) {
+    cout << "_LRRotate["<<node->key_<<"]" << endl;
+    node->left_ = _LeftRotate(node->left_);
+    return _RightRotate(node);
+  }
+  
+  Node *_RLRotate(Node *node) {
+    cout << "_RLRotate["<<node->key_<<"]" << endl;
+    node->right_ = _RightRotate(node->right_);
+    return _LeftRotate(node);
+  }
 	
   Node *root_;
   queue<Node *> node_queue_;
 };
 
-class BSTree_GTest : public ::testing::Test {
+class AVLTree_GTest : public ::testing::Test {
 
 protected:
-  BSTree *tree_;
+  AVLTree *tree_;
   int leafs_key_[7] = {100, 50, 250, 20, 70, 200, 300};
   virtual void SetUp(){
-    tree_ = new BSTree();
+    tree_ = new AVLTree();
     for(unsigned int i = 0; i < (sizeof(leafs_key_)/sizeof(leafs_key_[0])); i ++) {
       tree_->Insert(leafs_key_[i]);
     }
@@ -466,33 +537,17 @@ protected:
   }
 };
 
-TEST_F(BSTree_GTest, TraverseTopBottom_GTest){
+TEST_F(AVLTree_GTest, TraverseTopBottom_GTest){
   tree_->TraversePreOrder();
   tree_->TraverseTopBottom();
 }
 
-TEST_F(BSTree_GTest, RandBox_GTest){
-  int rand_val = 0;
-  RandBox *box = new RandBox(100, 0, 101);
-  box->Shake(0);
-  box->Shake(0);
-  box->Shake(unsigned(time(nullptr)));
-  
-  bool ret = box->GetRand(&rand_val);
-  cout << "GetRand:" << endl;
-  while(ret) {
-		cout << rand_val << " ";
-    ret = box->GetRand(&rand_val);
-  }
-  cout << endl;
-}
-
-TEST_F(BSTree_GTest, RandomNode_GTest){
+TEST_F(AVLTree_GTest, RandomNode_GTest){
   int val = 0;
-  const int node_num = 10;
+  const int node_num = 50;
   const int node_val_max = 100;
   const int node_val_min = 0;
-  BSTree *tree = new BSTree();
+  AVLTree *tree = new AVLTree();
   RandBox *rbox = new RandBox(node_num, node_val_min, node_val_max);
   bool ret = rbox->GetRand(&val);
   int insert_cnt = 0;
@@ -513,6 +568,7 @@ TEST_F(BSTree_GTest, RandomNode_GTest){
     EXPECT_TRUE(tree->Delete(val));
     ret = rbox->GetRand(&val);
     del_cnt ++;
+    tree->TraversePreOrder();
   }
   EXPECT_EQ(del_cnt, node_num);
   EXPECT_TRUE(tree->IsEmpty());
@@ -521,7 +577,7 @@ TEST_F(BSTree_GTest, RandomNode_GTest){
   tree->TraverseTopBottom();
 }
 
-TEST_F(BSTree_GTest, DeleteNode_GTest){
+TEST_F(AVLTree_GTest, DeleteNode_GTest){
   int input;
   bool ret = false;
   do {
