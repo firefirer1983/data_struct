@@ -382,8 +382,8 @@ private:
 	int _BDiff(Node *parent) {
 	  int diff = 0;
 	  if(parent) {
-  		int right = _BDiff(parent->right_);
-  		int left = _BDiff(parent->left_);
+  		int right = _BHeight(parent->right_);
+  		int left = _BHeight(parent->left_);
   		diff = left - right;
   		//		cout << parent->key_ << ": " << left << " vs " << right << " diff: " << diff << endl;
 		}
@@ -405,19 +405,19 @@ private:
 5. if parent(red)&&uncle(black)
 	 5a: parent(left)&&node(left): 
 	i.	rightRotate
-	ii. recolor:	parent=>black, children=>red
+	ii. recolor: grandpa=>red, parent=>black, children=>red 	
 
 	 5b: parent(right)&&node(right):
 	i.	leftRotate
-	ii. recolor: parent=>black, children=>red
+	ii. recolor: grandpa=>red, parent=>black, children=>red
 	
 	 5c: parent(left)&&node(right):
 	i. leftRotate + rightRotate
-	ii. recolor: parent=>black, children=>red
+	ii. recolor: grandpa=> red, parent=>red, children=>black
 
 	 5d: parent(right)&&node(left):
 	i. rightRotate + leftRotate
-	ii. recolor: parent=>black, children=>red 	
+	ii. recolor: grandpa=>red, parent=>red, children=>black 	
 */
 
   Node *_Insert(int key, Node *parent) {
@@ -480,9 +480,9 @@ private:
 							cout << endl;
 							ret_node = _RightRotate(parent);
 						} else {
-							CHG2_RED(parent);
-							CHG2_RED(parent->left_);
-							CHG2_BLACK(parent->left_->right_);
+							CHG2_RED(parent); // grandpa => RED
+							CHG2_RED(parent->left_); // parent => RED
+							CHG2_BLACK(parent->left_->right_); // child => BLACK
 							cout << "grandpa: " << COLOR_STR(parent) << "  ";
 							cout << "parent: " << COLOR_STR(parent->left_) << "  ";
 							cout << "child: " << COLOR_STR(parent->left_->right_) << "	";
@@ -502,9 +502,9 @@ private:
 							cout << endl;
 							ret_node = _LeftRotate(parent);
 						} else {
-							CHG2_RED(parent);
-							CHG2_RED(parent->right_);
-							CHG2_BLACK(parent->right_->left_);
+							CHG2_RED(parent); // prandpa => RED
+							CHG2_RED(parent->right_); // parent => RED
+							CHG2_BLACK(parent->right_->left_); // child = > BLACK
 							cout << "grandpa: " << COLOR_STR(parent) << "  ";
 							cout << "parent: " << COLOR_STR(parent->right_) << "	";
 							cout << "child: " << COLOR_STR(parent->right_->left_) << "	";
@@ -616,6 +616,7 @@ private:
 	    _InTravse(parent->left_);
       cout << parent->key_ << " ";
 		  EXPECT_EQ(_BDiff(parent), 0);
+			EXPECT_FALSE(parent->RedConflict());
       _InTravse(parent->right_);
     }
   }
@@ -624,6 +625,7 @@ private:
     if(parent) {
       cout << parent->key_ << ": " << COLOR_STR(parent) << "   ";
       EXPECT_EQ(_BDiff(parent), 0);
+			EXPECT_FALSE(parent->RedConflict());
       _PreTravse(parent->left_);
       _PreTravse(parent->right_);
     }
@@ -635,6 +637,7 @@ private:
       _PostTravse(parent->right_);
 	    cout << parent->key_ << " ";
       EXPECT_EQ(_BDiff(parent), 0);
+			EXPECT_FALSE(parent->RedConflict());
     }
   }
 
@@ -698,8 +701,8 @@ protected:
 
 TEST_F(RBTree_GTest, RandomNode_GTest){
   int val = 0;
-  const int node_num = 25;
-  const int node_val_max = 50;
+  const int node_num = 50;
+  const int node_val_max = 100;
   const int node_val_min = 0;
   RBTree *tree = new RBTree();
   RandBox *rbox = new RandBox(node_num, node_val_min, node_val_max);
