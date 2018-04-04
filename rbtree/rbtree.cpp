@@ -46,6 +46,27 @@ inline void NETLINE() {
 	cout << NEW_LINE;
 }
 
+#define CHK_BLACK(x) (x?x->IsBlack():true)
+
+#define CHK_RED(x) (x?x->IsRed():false)
+
+#define COLOR_STR(x) (x?(x->IsBlack()?"BLACK":"RED"):"BLACK")
+
+#define CHG2_BLACK(x) \
+do{\
+  if(x){\
+    x->TurnBlack();\
+  }\
+}while(0)
+
+#define CHG2_RED(x) \
+do{\
+	if(x){\
+		x->TurnRed();\
+	}\
+}while(0)
+
+
 class RandBox
 {
 public:
@@ -164,25 +185,33 @@ public:
   
 	bool IsLeaf() {
 	  bool leaf = true;
-	  if(this->left_||this->right_){
+	  if(left_||right_){
 	    leaf = false;
 	  }
 	  return leaf;
 	}
 	
 	bool IsBlack() {
-	  return !(this->red_);
+	  return !red_;
 	}
 	
 	bool IsRed() {
-	  return this->red_;
+	  return red_;
 	}
 	void TurnBlack(void) {
-	  this->red_ = false;
+	  red_ = false;
 	}
 	
 	void TurnRed(void) {
-		this->red_ = true;
+		red_ = true;
+	}
+
+	bool RedConflict(void) {
+	  if(IsRed()) {
+	    return ((left_&&left_->IsRed())||(right_&&right_->IsRed()));
+	  } else {
+	    return false;
+	  }
 	}
 	
   int key_;
@@ -209,12 +238,14 @@ public:
   }
   
   void Insert(int key) {
+    cout << "INSERT ==> " << key << endl;
     if(!root_) {
 		  root_ = new Node(key);
-		  return;
-    }
-		root_ = _Insert(key, root_, nullptr);
-    return;
+		  cout << "insert " << key << " on root" << endl;
+    } else {
+		  root_ = _Insert(key, root_);
+		}
+		root_->TurnBlack();
   }
   
   bool Delete(int key) {
@@ -323,9 +354,12 @@ private:
 	}
 
 	int _Diff(Node *parent) {
-		int right = _Diff(parent->right_);
-		int left = _Diff(parent->left_);
-		int diff = left - right;
+	  int diff = 0;
+	  if(parent) {
+  		int right = _Height(parent->right_);
+  		int left = _Height(parent->left_);
+  		diff = left - right;
+    }
 		//		cout << parent->key_ << ": " << left << " vs " << right << " diff: " << diff << endl;
 		return diff;
 	}
@@ -346,73 +380,142 @@ private:
 	}
 
 	int _BDiff(Node *parent) {
-		int right = _BDiff(parent->right_);
-		int left = _BDiff(parent->left_);
-		int diff = left - right;
-		//		cout << parent->key_ << ": " << left << " vs " << right << " diff: " << diff << endl;
+	  int diff = 0;
+	  if(parent) {
+  		int right = _BDiff(parent->right_);
+  		int left = _BDiff(parent->left_);
+  		diff = left - right;
+  		//		cout << parent->key_ << ": " << left << " vs " << right << " diff: " << diff << endl;
+		}
 		return diff;
 	}
+
+/*
+				 red/black tree insert rules
+				 
+1. always insert red node
+
+2. if insert root node, root=>black -> done
+
+3. if parent(black) -> done
+
+4. if parent(red)&&uncle(red)
+	 parent=>black uncle=>black  and grandpa=>red, recheck grand parent, push black to bottom untill the root
+	 
+5. if parent(red)&&uncle(black)
+	 5a: parent(left)&&node(left): 
+	i.	rightRotate
+	ii. recolor:	parent=>black, children=>red
+
+	 5b: parent(right)&&node(right):
+	i.	leftRotate
+	ii. recolor: parent=>black, children=>red
 	
-  Node *_Insert(int key, Node *parent, Node *grandpa) {
+	 5c: parent(left)&&node(right):
+	i. leftRotate + rightRotate
+	ii. recolor: parent=>black, children=>red
+
+	 5d: parent(right)&&node(left):
+	i. rightRotate + leftRotate
+	ii. recolor: parent=>black, children=>red 	
+*/
+
+  Node *_Insert(int key, Node *parent) {
     Node *ret_node = parent;
-    Node *insert_node = nullptr;
-    if(key == parent->key_) {
+    Node *new_node = nullptr;
+    bool left = false;
+    if(key == parent->key_) { // key already exist in the tree, just return what it is
+      return ret_node;
     } else if(key < parent->key_) {
       if(parent->left_) {
-        parent->left_ = _Insert(key, parent->left_, parent);
+        parent->left_ = _Insert(key, parent->left_);
       } else {
         parent->left_ = new Node(key);
         cout << parent->left_->key_ << " <- " << parent->key_ << endl;
-        insert_node = parent->left_;
+				new_node = parent->left_;
       }
+      left = true;
     } else {
       if(parent->right_) {
-        parent->right_ = _Insert(key, parent->right_, parent);
+        parent->right_ = _Insert(key, parent->right_);
       } else {
         parent->right_ = new Node(key);
         cout << parent->key_ << " -> " << parent->right_->key_  <<  endl;
-        insert_node = parent->right_;
+				new_node = parent->right_;
       }
     }
-    ret_node = parent;
-    if(insert_node) {
-      if(!grandpa) { // insert on root, just recolor => black
-        cout << "Insert on root, just recolor root -> BLACK" << endl;
-        parent->TurnBlack();
+    
+    if(!new_node) {
+      Node *sub_parent = nullptr;
+      Node *sub_uncle = nullptr;
+      if(left) {
+        sub_parent = parent->left_;
+        sub_uncle = parent->right_;
       } else {
-        if(parent->IsBlack()){ // parent is black, just insert a red node 
-  				cout << "Insert on BLACK parent, done!" << endl;
-        } else { // parent is red, red conflict!
-          cout << "RED parent: " << parent->key_ << " , RED conflict!" << endl;
-          Node *uncle = (grandpa->left_ == parent)?grandpa->right_:grandpa->left_; 
-          if(uncle&&uncle->IsRed()) {
-            cout << "Parent and uncle are both RED, push RED to Top" << endl;
-            uncle->TurnBlack();
-            parent->TurnBlack();
-            grandpa->TurnRed();
-          } else {
-            cout << "Red parent with Black uncle, try 4 cases to process" << endl;
-            bool on_left = (parent->left_&&parent->left_==insert_node)?true:false;
-            int diff = 0;
-						if(diff > 1) {
-							diff = _Diff(parent->left_);
-							if(diff > 0) {
-								ret_node = _RightRotate(parent);
-							} else {
-								ret_node = _LRRotate(parent);
-							}
-						} else if(diff < -1){
-							diff = _Diff(parent->right_);
-							if(diff < 0) {
-								ret_node = _LeftRotate(parent);
-							} else {
-								ret_node = _RLRotate(parent);
-							}
+        sub_parent = parent->right_;
+        sub_uncle = parent->left_;
+      }
+      cout << "parent: " << COLOR_STR(sub_parent) << " uncle: " << COLOR_STR(sub_uncle) << endl;
+      if(sub_parent->RedConflict()) {
+				if(CHK_RED(sub_parent)&&CHK_RED(sub_uncle)) { // parent && uncle is RED: recolor
+					cout << "parent && uncle are RED, recolor: "<< endl;
+					cout << "parent && uncle => BLACK, grandpa => RED" << endl;
+					CHG2_BLACK(sub_parent);
+					CHG2_BLACK(sub_uncle);
+					CHG2_RED(parent);
+				} else if(CHK_RED(sub_parent)&&CHK_BLACK(sub_uncle)){
+					cout << "parent RED && uncle BLACK, rotate and recolor: "<< endl;
+					int diff = _Diff(parent);
+					cout << parent->key_ << " diff: " << diff << endl;
+					if(diff > 1) {
+						diff = _Diff(parent->left_);
+						cout << parent->left_->key_ << " diff: " << diff << endl;
+						if(diff > 0) {
+							CHG2_RED(parent); // grandpa => RED
+							CHG2_BLACK(parent->left_);// parent => BLACK
+							CHG2_RED(parent->left_->left_); // child => RED
+							cout << "grandpa: " << COLOR_STR(parent) << "  ";
+							cout << "parent: " << COLOR_STR(parent->left_) << "  ";
+							cout << "child: " << COLOR_STR(parent->left_->left_) << "  ";
+							cout << endl;
+							ret_node = _RightRotate(parent);
+						} else {
+							CHG2_RED(parent);
+							CHG2_RED(parent->left_);
+							CHG2_BLACK(parent->left_->right_);
+							cout << "grandpa: " << COLOR_STR(parent) << "  ";
+							cout << "parent: " << COLOR_STR(parent->left_) << "  ";
+							cout << "child: " << COLOR_STR(parent->left_->right_) << "	";
+							cout << endl;
+							ret_node = _LRRotate(parent);
 						}
-          }
-        }
+					} else if(diff < -1) {
+						diff = _Diff(parent->right_);
+						cout << parent->right_->key_ << " diff: " << diff << endl;
+						if(diff < 0) {
+							CHG2_RED(parent); // grandpa => RED
+							CHG2_BLACK(parent->right_);// parent => BLACK
+							CHG2_RED(parent->right_->right_); // child => RED
+							cout << "grandpa: " << COLOR_STR(parent) << "  ";
+							cout << "parent: " << COLOR_STR(parent->right_) << "	";
+							cout << "child: " << COLOR_STR(parent->right_->right_) << "  ";
+							cout << endl;
+							ret_node = _LeftRotate(parent);
+						} else {
+							CHG2_RED(parent);
+							CHG2_RED(parent->right_);
+							CHG2_BLACK(parent->right_->left_);
+							cout << "grandpa: " << COLOR_STR(parent) << "  ";
+							cout << "parent: " << COLOR_STR(parent->right_) << "	";
+							cout << "child: " << COLOR_STR(parent->right_->left_) << "	";
+							cout << endl;
+							ret_node = _RLRotate(parent);
+						}
+					}
+				}
       }
     }
+    cout << "ret: " << ret_node->key_ << endl;
     return ret_node;
   }
   
@@ -512,15 +615,15 @@ private:
     if(parent) {
 	    _InTravse(parent->left_);
       cout << parent->key_ << " ";
-		  EXPECT_LT(_Diff(parent), 2);
+		  EXPECT_EQ(_BDiff(parent), 0);
       _InTravse(parent->right_);
     }
   }
   
   void _PreTravse(Node *parent) {
     if(parent) {
-      cout << parent->key_ << " ";
-      EXPECT_LT(_Diff(parent), 2);
+      cout << parent->key_ << ": " << COLOR_STR(parent) << "   ";
+      EXPECT_EQ(_BDiff(parent), 0);
       _PreTravse(parent->left_);
       _PreTravse(parent->right_);
     }
@@ -531,7 +634,7 @@ private:
 	    _PostTravse(parent->left_);
       _PostTravse(parent->right_);
 	    cout << parent->key_ << " ";
-      EXPECT_LT(_Diff(parent), 2);
+      EXPECT_EQ(_BDiff(parent), 0);
     }
   }
 
@@ -583,29 +686,56 @@ private:
   queue<Node *> node_queue_;
 };
 
-class AVLTree_GTest : public ::testing::Test {
+class RBTree_GTest : public ::testing::Test {
 
 protected:
-  RBTree *tree_;
-  int leafs_key_[7] = {100, 50, 250, 20, 70, 200, 300};
   virtual void SetUp(){
-    tree_ = new RBTree();
-    for(unsigned int i = 0; i < (sizeof(leafs_key_)/sizeof(leafs_key_[0])); i ++) {
-      tree_->Insert(leafs_key_[i]);
-    }
   }
   
   virtual void TearDown(){
-    delete tree_;
   }
 };
 
-TEST_F(AVLTree_GTest, TraverseTopBottom_GTest){
+TEST_F(RBTree_GTest, RandomNode_GTest){
+  int val = 0;
+  const int node_num = 25;
+  const int node_val_max = 50;
+  const int node_val_min = 0;
+  RBTree *tree = new RBTree();
+  RandBox *rbox = new RandBox(node_num, node_val_min, node_val_max);
+  bool ret = rbox->GetRand(&val);
+  int insert_cnt = 0;
+  while(ret){
+    tree->Insert(val);
+    tree->TraversePreOrder();
+    ret = rbox->GetRand(&val);
+    insert_cnt ++;
+  }
+  EXPECT_EQ(insert_cnt, node_num);
+  tree->TraversePreOrder();
+  tree->TraverseTopBottom();
+}
+
+
+TEST_F(RBTree_GTest, InsertNode_GTest){
+  int input;
+  RBTree *tree = new RBTree();
+  do {
+    cout << "Please input node key to insert: " << endl;
+    cin >> input;
+    tree->Insert(input);
+    tree->TraversePreOrder();
+  }while(1);
+}
+
+
+#if 0
+TEST_F(RBTree_GTest, TraverseTopBottom_GTest){
   tree_->TraversePreOrder();
   tree_->TraverseTopBottom();
 }
 
-TEST_F(AVLTree_GTest, RandomNode_GTest){
+TEST_F(RBTree_GTest, RandomNode_GTest){
   int val = 0;
   const int node_num = 50;
   const int node_val_max = 100;
@@ -640,7 +770,7 @@ TEST_F(AVLTree_GTest, RandomNode_GTest){
   tree->TraverseTopBottom();
 }
 
-TEST_F(AVLTree_GTest, DeleteNode_GTest){
+TEST_F(RBTree_GTest, DeleteNode_GTest){
   int input;
   bool ret = false;
   do {
@@ -656,7 +786,7 @@ TEST_F(AVLTree_GTest, DeleteNode_GTest){
     tree_->TraverseTopBottom();
   }while(ret);
 }
-
+#endif
 int main(int argc, char *argv[])
 {
   ::testing::InitGoogleTest(&argc, argv);
