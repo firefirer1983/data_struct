@@ -140,7 +140,6 @@ public:
       }while(limit);
     }
     cout << "Shake seed: " << seed << endl;
-    vector<int>::iterator itor;
 		for(int i = 0; i < size_; i ++) {
 		  int pos = rand_pos[i];
 		  cout << orig_[pos] << " ";
@@ -336,7 +335,17 @@ public:
     height = _Height(root_);
     return height;
   }
-  
+
+	void CountBlackNum() {
+	  int prev_val = 0;
+	  _BlackCount(root_, 0);
+	  prev_val = black_cnt_.front();
+	  for(vector<int>::iterator itor = black_cnt_.begin(); itor != black_cnt_.end(); itor ++) {
+      EXPECT_EQ(prev_val, *itor);
+      prev_val = *itor;
+	  }
+	}
+	
 private:
 	int _Height(Node *parent) {
 		int height = 0;
@@ -684,9 +693,25 @@ private:
     node->right_ = _RightRotate(node->right_);
     return _LeftRotate(node);
   }
+  
+	void _BlackCount(Node *parent, int num) {
+		if(parent->IsBlack())
+			num ++;
+	  if(!(parent->left_)&&!(parent->right_)) {
+	    
+      black_cnt_.push_back(num + 1);
+      cout << "End point " << parent->key_ << ": " << num + 1 << " black nodes" << endl;
+    } else{
+      if(parent->left_)
+			  _BlackCount(parent->left_, num);
+			if(parent->right_)
+        _BlackCount(parent->right_, num);
+    }
+	}
 	
   Node *root_;
   queue<Node *> node_queue_;
+  vector<int> black_cnt_;
 };
 
 class RBTree_GTest : public ::testing::Test {
@@ -714,6 +739,7 @@ TEST_F(RBTree_GTest, RandomNode_GTest){
     ret = rbox->GetRand(&val);
     insert_cnt ++;
   }
+  tree->CountBlackNum();
   EXPECT_EQ(insert_cnt, node_num);
   tree->TraversePreOrder();
   tree->TraverseTopBottom();
