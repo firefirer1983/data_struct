@@ -21,6 +21,10 @@ using std::find;
 #define OFSSET_START 8
 #define LEVEL_OFFSET 4
 
+#define RED 0
+#define BLACK 1
+#define DBLACK 2
+
 //#define SHOW_TREE
 #ifdef SHOW_TREE
 #define OFFSET_UNIT " "
@@ -29,6 +33,11 @@ using std::find;
 #define OFFSET_UNIT ""
 #define NEW_LINE "";
 #endif
+
+#define RSTT "\033[31m"
+#define CEND "\033[0m"
+#define BSTT "\033[34m"
+#define GSTT "\033[32m"
 
 inline void OFFSET(int n) {
 	for(int i = 0; i < n*LEVEL_OFFSET; i++) {
@@ -50,7 +59,7 @@ inline void NETLINE() {
 
 #define CHK_RED(x) (x?x->IsRed():false)
 
-#define COLOR_STR(x) (x?(x->IsBlack()?"BLACK":"RED"):"BLACK")
+#define COLOR_STR(x) (x?(x->IsBlack()?(BSTT "BLACK" CEND):(x->IsRed()?(RSTT "RED" CEND):(GSTT "D BLACK" CEND))):(BSTT "BLACK" CEND))
 
 #define CHG2_BLACK(x) \
 do{\
@@ -173,8 +182,7 @@ private:
 class Node
 {
 public:
-  Node(int key)  : key_(key), left_(nullptr), right_(nullptr), red_(true){};
-  
+  Node(int key)  : key_(key), left_(nullptr), right_(nullptr), blackness_(RED){};
   ~Node() {
     left_ = nullptr;
     right_ = nullptr;
@@ -191,19 +199,37 @@ public:
 	}
 	
 	bool IsBlack() {
-	  return !red_;
+	  return blackness_ == BLACK;
+	}
+
+	bool IsDBlack() {
+	  return blackness_ == DBLACK;
 	}
 	
 	bool IsRed() {
-	  return red_;
+	  return blackness_ == RED;
 	}
-	void TurnBlack(void) {
-	  red_ = false;
-	}
+
+  void TurnBlack(void) {
+    blackness_ = BLACK;
+  }
+
+  
+  void TurnRed(void) {
+    blackness_ = RED;
+  }
 	
-	void TurnRed(void) {
-		red_ = true;
-	}
+  void Blacken(void) {
+    if(blackness_ < DBLACK) {
+		  blackness_ ++;
+    }
+  }
+	
+  void Reden(void) {
+    if(blackness_ > RED) {
+		  blackness_ --;
+    }
+  }
 
 	bool RedConflict(void) {
 	  if(IsRed()) {
@@ -216,7 +242,7 @@ public:
   int key_;
   Node *left_;
   Node *right_;
-  bool red_;
+  int blackness_;
 	int ofs_; // Just for showing the tree structure use
 };
 
@@ -717,12 +743,35 @@ private:
 class RBTree_GTest : public ::testing::Test {
 
 protected:
+	RBTree *rbtree = new RBTree();
+	int leafs_key_[15] = {55, 23, 91, 20, 25, 80, 120, 15, 21, 24, 28, 70, 85, 110, 150};
   virtual void SetUp(){
+		cout << "SetUp Tree: " << endl;
+		for(unsigned i = 0; i <(sizeof(leafs_key_)/sizeof(leafs_key_[0])); i ++) {
+		  cout << leafs_key_[i] << " ";
+		}
+		cout << endl;
+	  for(unsigned i = 0; i < (sizeof(leafs_key_)/sizeof(leafs_key_[0])); i ++) {
+		  rbtree->Insert(leafs_key_[i]);
+		}
+		rbtree->TraversePreOrder();
   }
   
   virtual void TearDown(){
+    delete rbtree;
   }
 };
+
+TEST_F(RBTree_GTest, DeleteNode_GTest){
+  int input;
+  do {
+    cout << "Please input node key to delete: " << endl;
+    cin >> input;
+    rbtree->Delete(input);
+    rbtree->TraversePreOrder();
+  }while(1);
+}
+
 
 TEST_F(RBTree_GTest, RandomNode_GTest){
   int val = 0;
