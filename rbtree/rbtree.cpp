@@ -7,6 +7,8 @@
 #include <algorithm>
 #include <time.h>
 #include <gtest/gtest.h>
+#include <stdarg.h>
+#include <stdio.h>
 
 using std::cout;
 using std::cin;
@@ -38,6 +40,25 @@ using std::find;
 #define CEND "\033[0m"
 #define BSTT "\033[34m"
 #define GSTT "\033[32m"
+
+//#define DBG 1
+#ifdef DBG
+#define print(...) dbg(__VA_ARGS__)
+#define LOG_BUF_SIZE    2048
+inline int dbg(const char *fmt,...)  
+{  
+		va_list ap;  
+		char buf[LOG_BUF_SIZE]; 		 
+
+		va_start(ap, fmt);	
+		vsnprintf(buf, LOG_BUF_SIZE, fmt, ap);	
+		va_end(ap);  
+		printf("%s",buf);
+		return 0;
+}
+#else
+#define print(...) ((void)0)
+#endif
 
 const int NULL_KEY = 0xFFFFFFFF;
 
@@ -84,12 +105,13 @@ do{\
 	}\
 }while(0)
 
+#define KEY(x) (x?(x->Key()):-1)
 class RandBox
 {
 public:
   RandBox(int size, int min, int max):size_(size), min_(min), max_(max), dis_(max - min) {
     if(size_ > dis_) {
-      cout << "size : " << size << " must not larger than dis=(max-min): " << dis_ << endl;
+			print("size : %d must not larger than dis=(max-min): %d\n", size, dis_);
       assert(0);
     }
     bool *marks = new bool[size_];
@@ -97,8 +119,8 @@ public:
       marks[i] = false;
     }
     orig_ = new int[size];
-    cout << "min: " << min_ << " max: " << max_ << " dis: " << dis_ << endl;
-		cout << "Initial rand vals:" << endl;
+		print("min: %d   max: %d  dis: %d\n",min_,max_,dis_);
+		print("Initial rand vals:\n");
     for(int i = 0; i < size_; i ++) {
       int val = rand()%dis_;
       int limit = dis_ + 1;
@@ -117,7 +139,7 @@ public:
       }while(limit);
       
       if(!limit) {
-        cout << "create rand failed!" << endl;
+				print("create rand failed!\n");
       }
     }
     cout << endl;
@@ -191,7 +213,7 @@ class Node
 {
 public:
   Node(int key)  : left_(nullptr), right_(nullptr), blackness_(RED), key_(key){};
-  Node()  : left_(nullptr), right_(nullptr), blackness_(BLACK_BLACK){};
+  Node()  : left_(nullptr), right_(nullptr), blackness_(BLACK_BLACK), key_(NULL_KEY){};
   ~Node() {
     left_ = nullptr;
     right_ = nullptr;
@@ -281,7 +303,28 @@ public:
 			assert(0);
 		}
 	  if(child) {
-			Node *del_node = child;
+		  Node *inherit_node = nullptr;
+  		if(!(child->left_)&&!(child->right_)) {
+  		} else if(child->left_) {
+				print("Hookup its left sub child: %d\n",child->left_->key_);
+  			inherit_node = child->left_;
+  		} else {
+				print("Hookup its left right child: %d\n",child->right_->key_);
+  			inherit_node = child->right_;
+  		}
+			
+			if(child->IsRed()) {
+			} else {
+			  if((inherit_node)&&(inherit_node->IsRed())) {
+					print("%d has a %s child\n",child->Key(),COLOR_STR(inherit_node));
+					CHG2_BLACK(inherit_node);
+			  } else {
+				  inherit_node = new Node();
+					print("%d has a %s child\n",child->Key(),COLOR_STR(inherit_node));
+					print("Replact with a double black null node\n");
+			  }
+			}
+		#if 0
 			Node **child_ptr = (child == left_?&left_:&right_);
       cout << "Delete node " << child->Key() << " : " << COLOR_STR(child) << endl;
 			if(!(child->left_)&&!(child->right_)) {
@@ -293,19 +336,23 @@ public:
 				cout << " Hookup its right sub child: " <<  child->right_->key_ << endl;
 			  *child_ptr = child->right_;
 			}
+			ret_node = *child_ptr;
 			if(child->IsRed()) {
 			} else {
 			  if((*child_ptr)&&((*child_ptr)->IsRed())) {
 				  cout << child->Key() << " has a " << COLOR_STR((*child_ptr)) << " child!" << endl;
+					CHG2_BLACK((*child_ptr));
 			  } else {
+				  ret_node = new Node();
 				  cout << child->Key() << " has a " << COLOR_STR((*child_ptr)) << " child!" << endl;
-				  *child_ptr = new Node();
 					cout << "Replact with a double black null node" << endl;
+					cout << "ret => " << ret_node->Key() << " : " << COLOR_STR(ret_node) << endl;
 			  }
 			}
+	  #endif
 			cout << endl;
-			delete del_node;
-			return *child_ptr;
+			delete child;
+			return inherit_node;
 	  }
 		return nullptr;
 	}
@@ -361,10 +408,10 @@ public:
   }
   
   void Insert(int key) {
-    cout << "INSERT ==> " << key << endl;
+		print("INSERT ==> %d\n", key);
     if(!root_) {
 		  root_ = new Node(key);
-		  cout << "insert " << key << " on root" << endl;
+			print("insert %d on root\n", key);
     } else {
 		  root_ = _Insert(key, root_);
 		}
@@ -375,12 +422,12 @@ public:
     Node *del_node = nullptr;
 		bool ret = false;
     if(!root_) {
-      cout << "Delete failed on a empty tree" << endl;
+			print("Delete failed on a empty tree\n");
       return false;
     }
 		if((key == root_->Key())&&root_->IsLeaf()) {
-			cout << "Delete root: " << root_->Key() << endl;
-			cout << "Become Empty Tree!" << endl;
+			print("Delete root: %d\n",root_->Key());
+			print("Become Empty Tree!\n");
       delete root_;      
       root_ = nullptr;
       ret = true;
@@ -388,8 +435,8 @@ public:
 			del_node = _Delete(key, root_);
 			if(del_node) {
 				if(del_node->Is2Black()) {
-				  cout << "Case 3-1:" << endl;
-					cout << "root_ " << root_->Key() << " : " << COLOR_STR(del_node) << endl;
+					print("Case 3-1:\n");
+					print("root_ %d : %s\n",root_->Key(),COLOR_STR(del_node));
 				  CHG2_BLACK(del_node);
 				}
 			  root_ = del_node;
@@ -409,7 +456,7 @@ public:
   }
   
   void TraversePreOrder() {
-    cout << "Pre Order:" << endl;
+		print("Pre Order:\n");
     _PreTravse(root_);
     cout << endl;
   }
@@ -571,7 +618,7 @@ private:
         parent->left_ = _Insert(key, parent->left_);
       } else {
         parent->left_ = new Node(key);
-        cout << parent->left_->Key() << " <- " << parent->Key() << endl;
+				print("%d <- %d\n",parent->left_->Key(),parent->Key());
 				new_node = parent->left_;
       }
       left = true;
@@ -580,7 +627,7 @@ private:
         parent->right_ = _Insert(key, parent->right_);
       } else {
         parent->right_ = new Node(key);
-        cout << parent->Key() << " -> " << parent->right_->Key()  <<  endl;
+				print("%d -> %d\n",parent->Key(),parent->right_->Key());
 				new_node = parent->right_;
       }
     }
@@ -595,67 +642,67 @@ private:
         sub_parent = parent->right_;
         sub_uncle = parent->left_;
       }
-      cout << "parent: " << COLOR_STR(sub_parent) << " uncle: " << COLOR_STR(sub_uncle) << endl;
+			print("parent: %s   uncle: %s \n",COLOR_STR(sub_parent),COLOR_STR(sub_uncle));
       if(sub_parent->RedConflict()) {
 				if(CHK_RED(sub_parent)&&CHK_RED(sub_uncle)) { // parent && uncle is RED: recolor
-					cout << "parent && uncle are RED, recolor: "<< endl;
-					cout << "parent && uncle => BLACK, grandpa => RED" << endl;
+				  print("parent && uncle are RED, recolor: \n");
+					print("parent && uncle => BLACK, grandpa => RED\n");
 					CHG2_BLACK(sub_parent);
 					CHG2_BLACK(sub_uncle);
 					CHG2_RED(parent);
 				} else if(CHK_RED(sub_parent)&&CHK_BLACK(sub_uncle)){
-					cout << "parent RED && uncle BLACK, rotate and recolor: "<< endl;
+					print("parent RED && uncle BLACK, rotate and recolor: \n");
 					int diff = _Diff(parent);
-					cout << parent->Key() << " diff: " << diff << endl;
+					print("%d diff: %d\n",parent->Key(), diff);
 					if(diff > 1) {
 						diff = _Diff(parent->left_);
-						cout << parent->left_->Key() << " diff: " << diff << endl;
+						print("%d  diff: %d\n",parent->left_->Key(),diff);
 						if(diff > 0) {
 							CHG2_RED(parent); // grandpa => RED
 							CHG2_BLACK(parent->left_);// parent => BLACK
 							CHG2_RED(parent->left_->left_); // child => RED
-							cout << "grandpa: " << COLOR_STR(parent) << "  ";
-							cout << "parent: " << COLOR_STR(parent->left_) << "  ";
-							cout << "child: " << COLOR_STR(parent->left_->left_) << "  ";
-							cout << endl;
+							print("grandpa: %s  ",COLOR_STR(parent));
+							print("parent: %s  ",COLOR_STR(parent->left_));
+							print("child: %s  ",COLOR_STR(parent->left_->left_));
+							print("\n");
 							ret_node = _RightRotate(parent);
 						} else {
 							CHG2_RED(parent); // grandpa => RED
 							CHG2_RED(parent->left_); // parent => RED
 							CHG2_BLACK(parent->left_->right_); // child => BLACK
-							cout << "grandpa: " << COLOR_STR(parent) << "  ";
-							cout << "parent: " << COLOR_STR(parent->left_) << "  ";
-							cout << "child: " << COLOR_STR(parent->left_->right_) << "	";
-							cout << endl;
+							print("grandpa: %s  ",COLOR_STR(parent));
+							print("parent: %s  ",COLOR_STR(parent->left_));
+							print("child: %s  ",COLOR_STR(parent->left_->right_));
+							print("\n");
 							ret_node = _LRRotate(parent);
 						}
 					} else if(diff < -1) {
 						diff = _Diff(parent->right_);
-						cout << parent->right_->Key() << " diff: " << diff << endl;
+						print("%d  diff: %d\n",parent->right_->Key(),diff);
 						if(diff < 0) {
 							CHG2_RED(parent); // grandpa => RED
 							CHG2_BLACK(parent->right_);// parent => BLACK
 							CHG2_RED(parent->right_->right_); // child => RED
-							cout << "grandpa: " << COLOR_STR(parent) << "  ";
-							cout << "parent: " << COLOR_STR(parent->right_) << "	";
-							cout << "child: " << COLOR_STR(parent->right_->right_) << "  ";
-							cout << endl;
+							print("grandpa: %s  ",COLOR_STR(parent));
+							print("parent: %s  ",COLOR_STR(parent->left_));
+							print("child: %s  ",COLOR_STR(parent->right_->right_));
+							print("\n");
 							ret_node = _LeftRotate(parent);
 						} else {
 							CHG2_RED(parent); // prandpa => RED
 							CHG2_RED(parent->right_); // parent => RED
 							CHG2_BLACK(parent->right_->left_); // child = > BLACK
-							cout << "grandpa: " << COLOR_STR(parent) << "  ";
-							cout << "parent: " << COLOR_STR(parent->right_) << "	";
-							cout << "child: " << COLOR_STR(parent->right_->left_) << "	";
-							cout << endl;
+							print("grandpa: %s  ",COLOR_STR(parent));
+							print("parent: %s  ",COLOR_STR(parent->left_));
+							print("child: %s  ",COLOR_STR(parent->right_->left_));
+							print("\n");
 							ret_node = _RLRotate(parent);
 						}
 					}
 				}
       }
     }
-    cout << "ret: " << ret_node->Key() << endl;
+		print("ret: %d\n", ret_node->Key());
     return ret_node;
   }
 
@@ -663,23 +710,33 @@ private:
 		Node *ret_node = nullptr;
     Node *sibling = ((double_black == parent->left_)?parent->right_:parent->left_);
 		bool sibling_on_left = ((double_black == parent->left_)?false:true);
-		cout <<"Parent " << parent->Key() <<" : " << COLOR_STR(parent) << endl;
-		cout <<"Sibling " << sibling->Key()<<" : " << COLOR_STR(sibling) << " is on the " << (sibling_on_left?"LEFT":"RIGHT") << endl;
-		cout <<"Sibling left child: " << COLOR_STR(sibling->left_) << endl;
-		cout <<"Sibling right child: " << COLOR_STR(sibling->right_) << endl;
+		print("Parent %d : %s \n", parent->Key(), COLOR_STR(parent));
+		print("Sibling %d : %s \n", sibling->Key(), COLOR_STR(sibling));
+		print("Sibling left child %d : %s\n",KEY(sibling->left_),COLOR_STR(sibling->left_));
+		print("Sibling right child %d : %s\n",KEY(sibling->right_),COLOR_STR(sibling->right_));
+		print("Parent left child %d : %s\n",KEY(parent->left_),COLOR_STR(parent->left_));
+		print("Parent right child %d : %s\n",KEY(parent->right_),COLOR_STR(parent->right_));
 		
 		if(sibling->IsRed()&&CHK_BLACK(parent)&&CHK_BLACK(sibling->left_)&&CHK_BLACK(sibling->right_)) { // Case 2, RED sibling with 2 black children
-		  cout << "Case 3-2:" << endl;
+			print("Case 3-2:\n");
 		  CHG2_RED(parent);
 			CHG2_BLACK(sibling);
-		  sibling = _LeftRotate(parent);
-			cout <<"Parent " << parent->Key() <<" : " << COLOR_STR(parent) << endl;
-			cout <<"Sibling " << sibling->Key() <<" : " << COLOR_STR(sibling) << endl;
-			cout <<"Sibling left child: " << COLOR_STR(sibling->left_) << endl;
-			cout <<"Sibling right child: " << COLOR_STR(sibling->right_) << endl;
+			if(sibling_on_left) {
+		    sibling = _RightRotate(parent);
+		  } else {
+		    sibling = _LeftRotate(parent);
+			}
+			print("Parent %d : %s \n", parent->Key(), COLOR_STR(parent));
+			print("Sibling %d : %s \n", sibling->Key(), COLOR_STR(sibling));
+			print("Sibling left child %d : %s\n",KEY(sibling->left_),COLOR_STR(sibling->left_));
+			print("Sibling right child %d : %s\n",KEY(sibling->right_),COLOR_STR(sibling->right_));
+			print("Parent left child %d : %s\n",KEY(parent->left_),COLOR_STR(parent->left_));
+			print("Parent right child %d : %s\n",KEY(parent->right_),COLOR_STR(parent->right_));
+			
+			_SolveDoubleBlack(parent, double_black);
 			ret_node = sibling;
 		} else if(sibling->IsBlack()&&parent->IsBlack()&&CHK_BLACK(sibling->left_)&&CHK_BLACK(sibling->right_)) {
-			cout << "Case 3-3:" << endl;
+			print("Case 3-3:\n");
 			if(double_black->IsNull()) {
 			  if(sibling_on_left) {
 					parent->right_ = nullptr;
@@ -691,17 +748,19 @@ private:
 			}
 			CHG2_BLACKBLACK(parent);
 			CHG2_RED(sibling);
-			cout <<"Parent " << parent->Key() <<" : " << COLOR_STR(parent) << endl;
-			cout <<"Sibling " << sibling->Key() <<" : " << COLOR_STR(sibling) << endl;
-			cout <<"Sibling left child: " << COLOR_STR(sibling->left_) << endl;
-			cout <<"Sibling right child: " << COLOR_STR(sibling->right_) << endl;
+			print("Parent %d : %s \n", parent->Key(), COLOR_STR(parent));
+			print("Sibling %d : %s \n", sibling->Key(), COLOR_STR(sibling));
+			print("Sibling left child %d : %s\n",KEY(sibling->left_),COLOR_STR(sibling->left_));
+			print("Sibling right child %d : %s\n",KEY(sibling->right_),COLOR_STR(sibling->right_));
+			print("Parent left child %d : %s\n",KEY(parent->left_),COLOR_STR(parent->left_));
+			print("Parent right child %d : %s\n",KEY(parent->right_),COLOR_STR(parent->right_));
 			ret_node = parent;
 		} else if(sibling->IsBlack()&&parent->IsRed()&&CHK_BLACK(sibling->left_)&&CHK_BLACK(sibling->right_)) {
-		  cout << "Case 3-4:" << endl;
+			print("Case 3-4:\n");
 			CHG2_BLACK(parent);
-			cout << "Double black " << double_black->Key() << " : " << COLOR_STR(double_black) << endl;
+			print("Double black %d : %s\n",double_black->Key(),COLOR_STR(double_black));
 			if(double_black->IsNull()) {
-				cout << "Cut " << (sibling_on_left?"RIGHT":"LEFT") << " null " << COLOR_STR(double_black) << " node " << endl;
+				print("Cut %s null %s node\n",(sibling_on_left?"RIGHT":"LEFT"),COLOR_STR(double_black));
 			  if(sibling_on_left) {
 					parent->right_ = nullptr;
 			  } else {
@@ -712,15 +771,17 @@ private:
 			}
 			
 			CHG2_RED(sibling);
-			cout <<"Parent " << parent->Key() <<" : " << COLOR_STR(parent) << endl;
-			cout <<"Sibling " << sibling->Key() <<" : " << COLOR_STR(sibling) << endl;
-			cout <<"Sibling left child: " << COLOR_STR(sibling->left_) << endl;
-			cout <<"Sibling right child: " << COLOR_STR(sibling->right_) << endl;
+			print("Parent %d : %s \n", parent->Key(), COLOR_STR(parent));
+			print("Sibling %d : %s \n", sibling->Key(), COLOR_STR(sibling));
+			print("Sibling left child %d : %s\n",KEY(sibling->left_),COLOR_STR(sibling->left_));
+			print("Sibling right child %d : %s\n",KEY(sibling->right_),COLOR_STR(sibling->right_));
+			print("Parent left child %d : %s\n",KEY(parent->left_),COLOR_STR(parent->left_));
+			print("Parent right child %d : %s\n",KEY(parent->right_),COLOR_STR(parent->right_));
 			ret_node = parent;
 		} else if(sibling->IsBlack()&&\
 			((sibling_on_left&&CHK_BLACK(sibling->left_)&&CHK_RED(sibling->right_)) ||\
 			(!sibling_on_left&&CHK_BLACK(sibling->right_)&&CHK_RED(sibling->left_)))){
-		  cout << "Case 3-5:" << endl;
+			print("Case 3-5:\n");
 			CHG2_RED(sibling);
 			if(sibling_on_left) {
 				CHG2_BLACK(sibling->right_);
@@ -729,25 +790,34 @@ private:
 				CHG2_BLACK(sibling->left_);
 			  parent->right_ = _RightRotate(sibling);
 			}
-			cout <<"Parent " << parent->Key() <<" : " << COLOR_STR(parent) << endl;
-			cout <<"Sibling " << sibling->Key() <<" : " << COLOR_STR(sibling) << endl;
-			cout <<"Sibling left child: " << COLOR_STR(sibling->left_) << endl;
-			cout <<"Sibling right child: " << COLOR_STR(sibling->right_) << endl;
-			ret_node = parent;
+			print("Parent %d : %s \n", parent->Key(), COLOR_STR(parent));
+			print("Sibling %d : %s \n", sibling->Key(), COLOR_STR(sibling));
+			print("Sibling left child %d : %s\n",KEY(sibling->left_),COLOR_STR(sibling->left_));
+			print("Sibling right child %d : %s\n",KEY(sibling->right_),COLOR_STR(sibling->right_));
+			print("Parent left child %d : %s\n",KEY(parent->left_),COLOR_STR(parent->left_));
+			print("Parent right child %d : %s\n",KEY(parent->right_),COLOR_STR(parent->right_));
+			ret_node = _SolveDoubleBlack(parent, double_black);
 		} else if(sibling->IsBlack()&&\
 			((sibling_on_left&&CHK_RED(sibling->left_)) ||\
 			(!sibling_on_left&&CHK_RED(sibling->right_)))) {
-		  cout << "Case 3-6:" << endl;
+			print("Case 3-6:\n");
 			if(sibling_on_left) {
+        ret_node = _RightRotate(parent);
+				if(CHK_RED(sibling->left_)&&CHK_RED(sibling->right_)) {
+				  CHG2_RED(sibling);
+				}
 				CHG2_BLACK(parent);
 				CHG2_BLACK(sibling->left_);
-        ret_node = _RightRotate(parent);
 			} else {
-				CHG2_BLACK(parent);
+			  ret_node = _LeftRotate(parent);
+				if(CHK_RED(sibling->left_)&&CHK_RED(sibling->right_)) {
+				  CHG2_RED(sibling);
+				}
 				CHG2_BLACK(sibling->right_);
-        ret_node = _LeftRotate(parent);
+				CHG2_BLACK(parent);
+        
 			}
-			cout << "Cut " << (sibling_on_left?"RIGHT":"LEFT") << " null " << COLOR_STR(double_black) << " node " << endl;
+			print("Cut %s null %s node\n",(sibling_on_left?"RIGHT":"LEFT"),COLOR_STR(double_black));
 			if(double_black->IsNull()) {
 			  if(sibling_on_left) {
 					parent->right_ = nullptr;
@@ -757,10 +827,12 @@ private:
 			} else {
 		    CHG2_BLACK(double_black);
 			}
-			cout <<"Parent " << parent->Key() <<" : " << COLOR_STR(parent) << endl;
-			cout <<"Sibling " << sibling->Key() <<" : " << COLOR_STR(sibling) << endl;
-			cout <<"Sibling left child: " << COLOR_STR(sibling->left_) << endl;
-			cout <<"Sibling right child: " << COLOR_STR(sibling->right_) << endl;
+			print("Parent %d : %s \n", parent->Key(), COLOR_STR(parent));
+			print("Sibling %d : %s \n", sibling->Key(), COLOR_STR(sibling));
+			print("Sibling left child %d : %s\n",KEY(sibling->left_),COLOR_STR(sibling->left_));
+			print("Sibling right child %d : %s\n",KEY(sibling->right_),COLOR_STR(sibling->right_));
+			print("Parent left child %d : %s\n",KEY(parent->left_),COLOR_STR(parent->left_));
+			print("Parent right child %d : %s\n",KEY(parent->right_),COLOR_STR(parent->right_));
 		}
 		return ret_node;
   }
@@ -772,12 +844,12 @@ private:
       Node *swap_node = nullptr;
       if(parent->IsLeaf()) { // First delete node is a leaf.
         if(parent->IsRed()) {
-          cout << parent->Key() << " : " << COLOR_STR(parent) <<" leaf, just del the leaf" << endl;
+					print("%d : %s leaf, just del the leaf\n",parent->Key(),COLOR_STR(parent));
           delete parent;
           return nullptr;
         } else {
-          cout << parent->Key() << " : " << COLOR_STR(parent) <<" leaf, add a null double black child node " << endl;
-          cout << "Del => " << parent->Key() << endl;
+					print("%d : %s leaf, add a null double black child node\n",parent->Key(),COLOR_STR(parent));
+					print("Del => %d\n",parent->Key());
           delete parent;
 					del_node = new Node();
 					return del_node;
@@ -785,23 +857,23 @@ private:
       } else { // First delete node is not leaf, swap delete node
         if(parent->left_) {
   			  swap_node = _RightMostNode(parent->left_);
-  				cout << "Right most node: " << swap_node->Key() << " in " << parent->Key() << " left sub tree" << endl;
+					print("Right most node: %d in %d left sub tree\n",swap_node->Key(),parent->Key());
   				if(swap_node == parent->left_) {
   					parent->CopyKey(swap_node);
   				  parent->left_ = parent->RemoveChild(swap_node);
   				} else {
-  					cout << "Swap Del =>" << swap_node->Key() << endl;
+						print("Swap Del => %d\n",swap_node->Key());
   				  parent->CopyKey(swap_node);
   					parent->left_ = _Delete(parent->Key(), parent->left_);
   				}
         } else {
   				swap_node = _LeftMostNode(parent->right_);
-  				cout << "Left most node: " << swap_node->Key() << " in " << parent->Key() << " right sub tree" << endl;
+					print("Left most node: %d in %d  right sub tree\n",swap_node->Key(),parent->Key());
   				if(swap_node == parent->right_) {
   					parent->CopyKey(swap_node);
   					parent->right_ = parent->RemoveChild(swap_node);
   				} else {
-  					cout << "Swap Del =>" << swap_node->Key() << endl;
+						print("Swap Del => %d\n",swap_node->Key());
   					parent->CopyKey(swap_node);
   					parent->right_ = _Delete(parent->Key(), parent->right_);
           }
@@ -818,8 +890,18 @@ private:
     }
 		Node *double_black = parent->GetDoubleBlackChild();
 		if(double_black) {
-			cout << "Parent " << parent->Key() << " child " << double_black->Key() << " : " << COLOR_STR(double_black) << endl;
-			_SolveDoubleBlack(parent, double_black);
+			print("Parent %d    Child %d : %s\n",parent->Key(),double_black->Key(),COLOR_STR(double_black));
+			parent = _SolveDoubleBlack(parent, double_black);
+		  Node *next_double_black = parent->GetDoubleBlackChild();
+			if(next_double_black) {
+				print("Still double black on %d %s : %d %s\n",\
+					parent->Key(),\
+					((next_double_black == parent->left_)?" LEFT ":" RIGHT ")\
+					next_double_black->Key()\
+					COLOR_STR(next_double_black));
+			}else {
+				print("Fix up all the double black on %d\n",parent->Key());
+			}
 		}
     return parent;
   }	
@@ -840,7 +922,7 @@ private:
   void _InTravse(Node *parent) {
     if(parent) {
 	    _InTravse(parent->left_);
-      cout << parent->Key() << " ";
+			print("%d : %s  ",parent->Key(),COLOR_STR(parent));
 		  EXPECT_EQ(_BDiff(parent), 0);
 			EXPECT_FALSE(parent->RedConflict());
       _InTravse(parent->right_);
@@ -849,7 +931,7 @@ private:
   
   void _PreTravse(Node *parent) {
     if(parent) {
-      cout << parent->Key() << ": " << COLOR_STR(parent) << "   ";
+			print("%d : %s  ",parent->Key(),COLOR_STR(parent));
       EXPECT_EQ(_BDiff(parent), 0);
 			EXPECT_FALSE(parent->RedConflict());
       _PreTravse(parent->left_);
@@ -861,7 +943,7 @@ private:
     if(parent) {
 	    _PostTravse(parent->left_);
       _PostTravse(parent->right_);
-	    cout << parent->Key() << " ";
+		print("%d : %s	",parent->Key(),COLOR_STR(parent));
       EXPECT_EQ(_BDiff(parent), 0);
 			EXPECT_FALSE(parent->RedConflict());
     }
@@ -883,7 +965,7 @@ private:
 	}
 
   Node *_LeftRotate(Node *node) {
-    cout << "_LeftRotate["<<node->Key()<<"]" << endl;
+    print("_LeftRotate[%d]\n",node->Key());
     Node *root = node->right_;
     node->right_ = root->left_;
     root->left_ = node;
@@ -891,7 +973,7 @@ private:
   }
   
   Node *_RightRotate(Node *node) {
-    cout << "_RightRotate["<<node->Key()<<"]" << endl;
+    print("_RightRotate[%d]\n",node->Key());
     Node *root = node->left_;
     node->left_ = root->right_;
     root->right_ = node;
@@ -899,13 +981,13 @@ private:
   }
   
   Node *_LRRotate(Node *node) {
-    cout << "_LRRotate["<<node->Key()<<"]" << endl;
+    print("_LRRotate[%d]\n",node->Key());
     node->left_ = _LeftRotate(node->left_);
     return _RightRotate(node);
   }
   
   Node *_RLRotate(Node *node) {
-    cout << "_RLRotate["<<node->Key()<<"]" << endl;
+    print("_RLRotate[%d]\n",node->Key());
     node->right_ = _RightRotate(node->right_);
     return _LeftRotate(node);
   }
@@ -935,8 +1017,10 @@ class RBTree_GTest : public ::testing::Test {
 protected:
 	RBTree *rbtree = new RBTree();
 	//int leafs_key_[15] = {55, 23, 91, 20, 25, 80, 120, 15, 21, 24, 28, 70, 85, 110, 150};
-	int leafs_key_[6] = {55, 23, 91, 20, 25, 15};
+	//int leafs_key_[6] = {55, 23, 91, 20, 25, 15};
   virtual void SetUp(){
+    print("debug log is enable!\n");
+  #if 0
 		cout << "SetUp Tree: " << endl;
 		for(unsigned i = 0; i <(sizeof(leafs_key_)/sizeof(leafs_key_[0])); i ++) {
 		  cout << leafs_key_[i] << " ";
@@ -946,6 +1030,7 @@ protected:
 		  rbtree->Insert(leafs_key_[i]);
 		}
 		rbtree->TraversePreOrder();
+#endif
   }
   
   virtual void TearDown(){
@@ -956,8 +1041,8 @@ protected:
 
 TEST_F(RBTree_GTest, RandomNode_GTest){
   int val = 0;
-  const int node_num = 10;
-  const int node_val_max = 100;
+  const int node_num = 1000;
+  const int node_val_max = 2000;
   const int node_val_min = 0;
   RBTree *tree = new RBTree();
   RandBox *rbox = new RandBox(node_num, node_val_min, node_val_max);
@@ -969,10 +1054,20 @@ TEST_F(RBTree_GTest, RandomNode_GTest){
     ret = rbox->GetRand(&val);
     insert_cnt ++;
   }
-  tree->CountBlackNum();
-  EXPECT_EQ(insert_cnt, node_num);
+  //tree->CountBlackNum();
   tree->TraversePreOrder();
-  tree->TraverseTopBottom();
+  rbox->Shake(0);
+  ret = rbox->GetRand(&val);
+  int del_cnt = 0;
+  while(ret){
+		print("Kill => <%d>\n",val);
+    EXPECT_TRUE(tree->Delete(val));
+		tree->TraversePreOrder();
+    ret = rbox->GetRand(&val);
+    del_cnt ++;
+  }
+  EXPECT_EQ(del_cnt, node_num);
+  EXPECT_TRUE(tree->IsEmpty());
 }
 
 TEST_F(RBTree_GTest, DeleteNode_GTest){
