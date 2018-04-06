@@ -23,7 +23,7 @@ using std::find;
 
 #define RED 0
 #define BLACK 1
-#define DBLACK 2
+#define BLACK_BLACK 2
 
 //#define SHOW_TREE
 #ifdef SHOW_TREE
@@ -38,6 +38,8 @@ using std::find;
 #define CEND "\033[0m"
 #define BSTT "\033[34m"
 #define GSTT "\033[32m"
+
+const int NULL_KEY = 0xFFFFFFFF;
 
 inline void OFFSET(int n) {
 	for(int i = 0; i < n*LEVEL_OFFSET; i++) {
@@ -59,7 +61,7 @@ inline void NETLINE() {
 
 #define CHK_RED(x) (x?x->IsRed():false)
 
-#define COLOR_STR(x) (x?(x->IsBlack()?(BSTT "BLACK" CEND):(x->IsRed()?(RSTT "RED" CEND):(GSTT "D BLACK" CEND))):(BSTT "BLACK" CEND))
+#define COLOR_STR(x) (x?(x->IsBlack()?(BSTT "BLACK" CEND):(x->IsRed()?(RSTT "RED" CEND):(GSTT "BLACK+BLACK" CEND))):(BSTT "BLACK" CEND))
 
 #define CHG2_BLACK(x) \
 do{\
@@ -75,6 +77,12 @@ do{\
 	}\
 }while(0)
 
+#define CHG2_BLACKBLACK(x) \
+do{\
+	if(x){\
+		x->TurnBlackBlack();\
+	}\
+}while(0)
 
 class RandBox
 {
@@ -182,11 +190,12 @@ private:
 class Node
 {
 public:
-  Node(int key)  : key_(key), left_(nullptr), right_(nullptr), blackness_(RED){};
+  Node(int key)  : left_(nullptr), right_(nullptr), blackness_(RED), key_(key){};
+  Node()  : left_(nullptr), right_(nullptr), blackness_(BLACK_BLACK){};
   ~Node() {
     left_ = nullptr;
     right_ = nullptr;
-    key_ = 0;
+    key_ = NULL_KEY;
     ofs_ = 0;
   };
   
@@ -202,35 +211,123 @@ public:
 	  return blackness_ == BLACK;
 	}
 
-	bool IsDBlack() {
-	  return blackness_ == DBLACK;
+	bool Is2Black() {
+	  return blackness_ == BLACK_BLACK;
 	}
 	
 	bool IsRed() {
 	  return blackness_ == RED;
 	}
 
-  void TurnBlack(void) {
-    blackness_ = BLACK;
+  Node *GetRedChild() {
+		Node *red_child = nullptr;
+		if(left_&&left_->IsRed()) {
+		  red_child = left_;
+		} else if(right_&&right_->IsRed()) {
+		  red_child = right_;
+		}
+		return red_child;
   }
-
+	
+	Node *GetDoubleBlackChild() {
+		Node *blackblack_child = nullptr;
+		if(left_&&left_->Is2Black()) {
+		  blackblack_child = left_;
+		} else if(right_&&right_->Is2Black()) {
+		  blackblack_child = right_;
+		}
+		return blackblack_child;
+  }
+	
+  bool IsNull(void) {
+		return key_ == NULL_KEY;
+  }
   
   void TurnRed(void) {
     blackness_ = RED;
   }
 	
-  void Blacken(void) {
-    if(blackness_ < DBLACK) {
-		  blackness_ ++;
-    }
-  }
-	
-  void Reden(void) {
-    if(blackness_ > RED) {
-		  blackness_ --;
-    }
+  void TurnBlack(void) {
+    blackness_ = BLACK;
   }
 
+  void TurnBlackBlack(void) {
+    blackness_ = BLACK_BLACK;
+  }
+	
+  bool CopyKey(Node *src) {
+    bool ret = false;
+    if(src&&key_!=NULL_KEY&&src->key_!=NULL_KEY) {
+			key_ = src->key_;
+			ret = true;
+    }
+		return ret;
+  }
+	
+  bool SwapKey(Node *src) {
+  	bool ret = false;
+  	if(src&&key_!=NULL_KEY&&src->key_!=NULL_KEY) {
+  		int tmp = key_;
+			key_ = src->key_;
+		  src->key_ = tmp;
+  		ret = true;
+  	}
+  	return ret;
+  }
+
+	Node *RemoveChild(Node *child) {
+		if((child->left_)&&(child->right_)) {
+			cout << "RemoveChild Failed: Child "<< child->key_ << " has two sub children" << endl;
+			assert(0);
+		}
+	  if(child) {
+			Node *del_node = child;
+			Node **child_ptr = (child == left_?&left_:&right_);
+      cout << "Delete node " << child->Key() << " : " << COLOR_STR(child) << endl;
+			if(!(child->left_)&&!(child->right_)) {
+				*child_ptr = nullptr;
+			} else if(child->left_) {
+				cout << " Hookup its left sub child: " <<  child->left_->key_ << endl;
+			  *child_ptr = child->left_;
+			} else {
+				cout << " Hookup its right sub child: " <<  child->right_->key_ << endl;
+			  *child_ptr = child->right_;
+			}
+			if(child->IsRed()) {
+			} else {
+			  if((*child_ptr)&&((*child_ptr)->IsRed())) {
+				  cout << child->Key() << " has a " << COLOR_STR((*child_ptr)) << " child!" << endl;
+			  } else {
+				  cout << child->Key() << " has a " << COLOR_STR((*child_ptr)) << " child!" << endl;
+				  *child_ptr = new Node();
+					cout << "Replact with a double black null node" << endl;
+			  }
+			}
+			cout << endl;
+			delete del_node;
+			return *child_ptr;
+	  }
+		return nullptr;
+	}
+
+	void ReplaceLeaf(Node *old_node, Node *new_node) {
+	  if(!old_node->IsLeaf()) {
+			cout << "ReplaceLeaf Failed: Child "<< old_node->key_ << " has two sub children" << endl;
+			assert(0);
+	  }
+		if(old_node&&new_node) {
+		  Node *del_node = old_node;
+			Node **child_ptr = (old_node == left_?&left_:&right_);
+		  cout << "Replace node " << old_node->key_ << " with " << new_node->Key() << endl;
+			*child_ptr = new_node;
+			delete del_node;
+		}
+		
+	}
+	inline int Key() {
+	  return key_;
+	}
+	
 	bool RedConflict(void) {
 	  if(IsRed()) {
 	    return ((left_&&left_->IsRed())||(right_&&right_->IsRed()));
@@ -239,11 +336,12 @@ public:
 	  }
 	}
 	
-  int key_;
   Node *left_;
   Node *right_;
-  int blackness_;
 	int ofs_; // Just for showing the tree structure use
+private:
+  int blackness_;
+  int key_;
 };
 
 class RBTree
@@ -280,18 +378,25 @@ public:
       cout << "Delete failed on a empty tree" << endl;
       return false;
     }
-		if((key == root_->key_)&&\
-			 (!root_->left_)&&\
-			 (!root_->right_)){
-			 root_ = _Delete(key, root_);
-			 ret = true;
+		if((key == root_->Key())&&root_->IsLeaf()) {
+			cout << "Delete root: " << root_->Key() << endl;
+			cout << "Become Empty Tree!" << endl;
+      delete root_;      
+      root_ = nullptr;
+      ret = true;
 		} else {
 			del_node = _Delete(key, root_);
-			root_ = del_node;
-			if(del_node)
-				ret =  true;
-			else
+			if(del_node) {
+				if(del_node->Is2Black()) {
+				  cout << "Case 3-1:" << endl;
+					cout << "root_ " << root_->Key() << " : " << COLOR_STR(del_node) << endl;
+				  CHG2_BLACK(del_node);
+				}
+			  root_ = del_node;
+			  ret =  true;
+			}	else {
 				ret =  false;
+			}
 		}
 //		cout << "del: " << key << " ret: " << ret << endl;
 		return ret;
@@ -332,7 +437,7 @@ public:
     while(node_queue_.size()) {
       Node *cur = node_queue_.front();
       height_cur = _Height(cur);
-      //cout << cur->key_ << ": " << height_cur << endl;
+      //cout << cur->Key() << ": " << height_cur << endl;
       if(cur && cur->left_) {
         cur->left_->ofs_ = cur->ofs_ - 1;
         node_queue_.push(cur->left_);
@@ -343,7 +448,7 @@ public:
         node_queue_.push(cur->right_);
 				node_cnt ++;
       }
-      cout << cur->key_ << " ";
+      cout << cur->Key() << " ";
       //cout << "[" << cur->ofs_ << "]" << " ";
       OFFSET(cur->ofs_);
       node_queue_.pop();
@@ -395,7 +500,7 @@ private:
   		int left = _Height(parent->left_);
   		diff = left - right;
     }
-		//		cout << parent->key_ << ": " << left << " vs " << right << " diff: " << diff << endl;
+		//		cout << parent->Key() << ": " << left << " vs " << right << " diff: " << diff << endl;
 		return diff;
 	}
 	
@@ -420,7 +525,7 @@ private:
   		int right = _BHeight(parent->right_);
   		int left = _BHeight(parent->left_);
   		diff = left - right;
-  		//		cout << parent->key_ << ": " << left << " vs " << right << " diff: " << diff << endl;
+  		//		cout << parent->Key() << ": " << left << " vs " << right << " diff: " << diff << endl;
 		}
 		return diff;
 	}
@@ -459,14 +564,14 @@ private:
     Node *ret_node = parent;
     Node *new_node = nullptr;
     bool left = false;
-    if(key == parent->key_) { // key already exist in the tree, just return what it is
+    if(key == parent->Key()) { // key already exist in the tree, just return what it is
       return ret_node;
-    } else if(key < parent->key_) {
+    } else if(key < parent->Key()) {
       if(parent->left_) {
         parent->left_ = _Insert(key, parent->left_);
       } else {
         parent->left_ = new Node(key);
-        cout << parent->left_->key_ << " <- " << parent->key_ << endl;
+        cout << parent->left_->Key() << " <- " << parent->Key() << endl;
 				new_node = parent->left_;
       }
       left = true;
@@ -475,7 +580,7 @@ private:
         parent->right_ = _Insert(key, parent->right_);
       } else {
         parent->right_ = new Node(key);
-        cout << parent->key_ << " -> " << parent->right_->key_  <<  endl;
+        cout << parent->Key() << " -> " << parent->right_->Key()  <<  endl;
 				new_node = parent->right_;
       }
     }
@@ -501,10 +606,10 @@ private:
 				} else if(CHK_RED(sub_parent)&&CHK_BLACK(sub_uncle)){
 					cout << "parent RED && uncle BLACK, rotate and recolor: "<< endl;
 					int diff = _Diff(parent);
-					cout << parent->key_ << " diff: " << diff << endl;
+					cout << parent->Key() << " diff: " << diff << endl;
 					if(diff > 1) {
 						diff = _Diff(parent->left_);
-						cout << parent->left_->key_ << " diff: " << diff << endl;
+						cout << parent->left_->Key() << " diff: " << diff << endl;
 						if(diff > 0) {
 							CHG2_RED(parent); // grandpa => RED
 							CHG2_BLACK(parent->left_);// parent => BLACK
@@ -526,7 +631,7 @@ private:
 						}
 					} else if(diff < -1) {
 						diff = _Diff(parent->right_);
-						cout << parent->right_->key_ << " diff: " << diff << endl;
+						cout << parent->right_->Key() << " diff: " << diff << endl;
 						if(diff < 0) {
 							CHG2_RED(parent); // grandpa => RED
 							CHG2_BLACK(parent->right_);// parent => BLACK
@@ -550,90 +655,176 @@ private:
 				}
       }
     }
-    cout << "ret: " << ret_node->key_ << endl;
+    cout << "ret: " << ret_node->Key() << endl;
     return ret_node;
   }
-  
+
+  Node *_SolveDoubleBlack(Node *parent, Node *double_black) {
+		Node *ret_node = nullptr;
+    Node *sibling = ((double_black == parent->left_)?parent->right_:parent->left_);
+		bool sibling_on_left = ((double_black == parent->left_)?false:true);
+		cout <<"Parent " << parent->Key() <<" : " << COLOR_STR(parent) << endl;
+		cout <<"Sibling " << sibling->Key()<<" : " << COLOR_STR(sibling) << " is on the " << (sibling_on_left?"LEFT":"RIGHT") << endl;
+		cout <<"Sibling left child: " << COLOR_STR(sibling->left_) << endl;
+		cout <<"Sibling right child: " << COLOR_STR(sibling->right_) << endl;
+		
+		if(sibling->IsRed()&&CHK_BLACK(parent)&&CHK_BLACK(sibling->left_)&&CHK_BLACK(sibling->right_)) { // Case 2, RED sibling with 2 black children
+		  cout << "Case 3-2:" << endl;
+		  CHG2_RED(parent);
+			CHG2_BLACK(sibling);
+		  sibling = _LeftRotate(parent);
+			cout <<"Parent " << parent->Key() <<" : " << COLOR_STR(parent) << endl;
+			cout <<"Sibling " << sibling->Key() <<" : " << COLOR_STR(sibling) << endl;
+			cout <<"Sibling left child: " << COLOR_STR(sibling->left_) << endl;
+			cout <<"Sibling right child: " << COLOR_STR(sibling->right_) << endl;
+			ret_node = sibling;
+		} else if(sibling->IsBlack()&&parent->IsBlack()&&CHK_BLACK(sibling->left_)&&CHK_BLACK(sibling->right_)) {
+			cout << "Case 3-3:" << endl;
+			if(double_black->IsNull()) {
+			  if(sibling_on_left) {
+					parent->right_ = nullptr;
+			  } else {
+					parent->left_ = nullptr;
+			  }
+			} else {
+		    CHG2_BLACK(double_black);
+			}
+			CHG2_BLACKBLACK(parent);
+			CHG2_RED(sibling);
+			cout <<"Parent " << parent->Key() <<" : " << COLOR_STR(parent) << endl;
+			cout <<"Sibling " << sibling->Key() <<" : " << COLOR_STR(sibling) << endl;
+			cout <<"Sibling left child: " << COLOR_STR(sibling->left_) << endl;
+			cout <<"Sibling right child: " << COLOR_STR(sibling->right_) << endl;
+			ret_node = parent;
+		} else if(sibling->IsBlack()&&parent->IsRed()&&CHK_BLACK(sibling->left_)&&CHK_BLACK(sibling->right_)) {
+		  cout << "Case 3-4:" << endl;
+			CHG2_BLACK(parent);
+			cout << "Double black " << double_black->Key() << " : " << COLOR_STR(double_black) << endl;
+			if(double_black->IsNull()) {
+				cout << "Cut " << (sibling_on_left?"RIGHT":"LEFT") << " null " << COLOR_STR(double_black) << " node " << endl;
+			  if(sibling_on_left) {
+					parent->right_ = nullptr;
+			  } else {
+					parent->left_ = nullptr;
+			  }
+			} else {
+		    CHG2_BLACK(double_black);
+			}
+			
+			CHG2_RED(sibling);
+			cout <<"Parent " << parent->Key() <<" : " << COLOR_STR(parent) << endl;
+			cout <<"Sibling " << sibling->Key() <<" : " << COLOR_STR(sibling) << endl;
+			cout <<"Sibling left child: " << COLOR_STR(sibling->left_) << endl;
+			cout <<"Sibling right child: " << COLOR_STR(sibling->right_) << endl;
+			ret_node = parent;
+		} else if(sibling->IsBlack()&&\
+			((sibling_on_left&&CHK_BLACK(sibling->left_)&&CHK_RED(sibling->right_)) ||\
+			(!sibling_on_left&&CHK_BLACK(sibling->right_)&&CHK_RED(sibling->left_)))){
+		  cout << "Case 3-5:" << endl;
+			CHG2_RED(sibling);
+			if(sibling_on_left) {
+				CHG2_BLACK(sibling->right_);
+			  parent->left_ = _LeftRotate(sibling);
+			} else {
+				CHG2_BLACK(sibling->left_);
+			  parent->right_ = _RightRotate(sibling);
+			}
+			cout <<"Parent " << parent->Key() <<" : " << COLOR_STR(parent) << endl;
+			cout <<"Sibling " << sibling->Key() <<" : " << COLOR_STR(sibling) << endl;
+			cout <<"Sibling left child: " << COLOR_STR(sibling->left_) << endl;
+			cout <<"Sibling right child: " << COLOR_STR(sibling->right_) << endl;
+			ret_node = parent;
+		} else if(sibling->IsBlack()&&\
+			((sibling_on_left&&CHK_RED(sibling->left_)) ||\
+			(!sibling_on_left&&CHK_RED(sibling->right_)))) {
+		  cout << "Case 3-6:" << endl;
+			if(sibling_on_left) {
+				CHG2_BLACK(parent);
+				CHG2_BLACK(sibling->left_);
+        ret_node = _RightRotate(parent);
+			} else {
+				CHG2_BLACK(parent);
+				CHG2_BLACK(sibling->right_);
+        ret_node = _LeftRotate(parent);
+			}
+			cout << "Cut " << (sibling_on_left?"RIGHT":"LEFT") << " null " << COLOR_STR(double_black) << " node " << endl;
+			if(double_black->IsNull()) {
+			  if(sibling_on_left) {
+					parent->right_ = nullptr;
+			  } else {
+					parent->left_ = nullptr;
+			  }
+			} else {
+		    CHG2_BLACK(double_black);
+			}
+			cout <<"Parent " << parent->Key() <<" : " << COLOR_STR(parent) << endl;
+			cout <<"Sibling " << sibling->Key() <<" : " << COLOR_STR(sibling) << endl;
+			cout <<"Sibling left child: " << COLOR_STR(sibling->left_) << endl;
+			cout <<"Sibling right child: " << COLOR_STR(sibling->right_) << endl;
+		}
+		return ret_node;
+  }
+
   Node *_Delete(int key, Node *parent) {
-    Node *del_node = nullptr;
-    if(key == parent->key_) {
-      cout << "Binggo <= " << key << endl;
+    Node *del_node = parent;
+    if(key == parent->Key()) {
+      //cout << "Binggo <= " << key << endl;
       Node *swap_node = nullptr;
-		  Node *swap_parent = parent;
       if(parent->IsLeaf()) { // First delete node is a leaf.
-        cout << parent->key_ << " is a leaf, just del the leaf" << endl;
-        cout << "Del => " << parent->key_ << endl;
-        delete parent;
-			  del_node = nullptr;
+        if(parent->IsRed()) {
+          cout << parent->Key() << " : " << COLOR_STR(parent) <<" leaf, just del the leaf" << endl;
+          delete parent;
+          return nullptr;
+        } else {
+          cout << parent->Key() << " : " << COLOR_STR(parent) <<" leaf, add a null double black child node " << endl;
+          cout << "Del => " << parent->Key() << endl;
+          delete parent;
+					del_node = new Node();
+					return del_node;
+        }
       } else { // First delete node is not leaf, swap delete node
-				if(parent->right_) {
-					swap_node = parent->right_;
-					while(swap_node->left_){
-						swap_parent = swap_node;
-						swap_node = swap_node->left_;
-					};
-					cout << "Left most node: " << swap_node->key_ << " in " << parent->key_ << " right sub tree" << endl;
-				} else {
-					swap_node = parent->left_;
-					while(swap_node->right_){
-						swap_parent = swap_node;
-						swap_node = swap_node->right_;
-					};
-					cout << "Right most node: " << swap_node->key_ << " in " << parent->key_ << " left sub tree" << endl;
-				}
-				if(swap_node->IsLeaf()) {
-					cout << "Swap node is a leaf, just del the swap node: " << swap_node->key_ << endl;
-					if(swap_parent != parent) {
-						parent->key_ = swap_node->key_;
-					} else {
-						swap_parent->key_ = swap_node->key_;
-					}
-					if(swap_parent->left_ == swap_node) {
-						swap_parent->left_ = nullptr;
-					} else {
-						swap_parent->right_ = nullptr;
-					}
-					cout << "Del => " << swap_node->key_ << endl;
-					delete swap_node;
-				} else {
-					cout << "Swap " << parent->key_ << " with " << swap_node->key_ << endl;
-					cout << "Swap to del " << swap_node->key_ << endl;
-					parent->key_ = swap_node->key_;
-					_Delete(swap_node->key_, swap_node);
-				}
-        del_node = parent;
+        if(parent->left_) {
+  			  swap_node = _RightMostNode(parent->left_);
+  				cout << "Right most node: " << swap_node->Key() << " in " << parent->Key() << " left sub tree" << endl;
+  				if(swap_node == parent->left_) {
+  					parent->CopyKey(swap_node);
+  				  parent->left_ = parent->RemoveChild(swap_node);
+  				} else {
+  					cout << "Swap Del =>" << swap_node->Key() << endl;
+  				  parent->CopyKey(swap_node);
+  					parent->left_ = _Delete(parent->Key(), parent->left_);
+  				}
+        } else {
+  				swap_node = _LeftMostNode(parent->right_);
+  				cout << "Left most node: " << swap_node->Key() << " in " << parent->Key() << " right sub tree" << endl;
+  				if(swap_node == parent->right_) {
+  					parent->CopyKey(swap_node);
+  					parent->right_ = parent->RemoveChild(swap_node);
+  				} else {
+  					cout << "Swap Del =>" << swap_node->Key() << endl;
+  					parent->CopyKey(swap_node);
+  					parent->right_ = _Delete(parent->Key(), parent->right_);
+          }
+        }
       }
-    } else if(key < parent->key_) {
+    } else if(key < parent->Key()) {
       if(parent->left_) {
         parent->left_ = _Delete(key, parent->left_);
-				del_node = parent;
       }
     } else {
       if(parent->right_) {
         parent->right_ = _Delete(key, parent->right_);
-				del_node = parent;
       }
     }
+		Node *double_black = parent->GetDoubleBlackChild();
+		if(double_black) {
+			cout << "Parent " << parent->Key() << " child " << double_black->Key() << " : " << COLOR_STR(double_black) << endl;
+			_SolveDoubleBlack(parent, double_black);
+		}
+    return parent;
+  }	
 
-    int diff = _Diff(parent);
-    if(diff > 1) {
-      diff = _Diff(parent->left_);
-      if(diff > 0) {
-        del_node = _RightRotate(parent);
-      } else {
-        del_node = _LRRotate(parent);
-      }
-    } else if(diff < -1){
-      diff = _Diff(parent->right_);
-      if(diff < 0) {
-        del_node = _LeftRotate(parent);
-      } else {
-        del_node = _RLRotate(parent);
-      }
-    }
-    return del_node;
-  }
-
+	
   void _Delete(Node *parent) {
     if(parent->left_) {
       _Delete(parent->left_);
@@ -649,7 +840,7 @@ private:
   void _InTravse(Node *parent) {
     if(parent) {
 	    _InTravse(parent->left_);
-      cout << parent->key_ << " ";
+      cout << parent->Key() << " ";
 		  EXPECT_EQ(_BDiff(parent), 0);
 			EXPECT_FALSE(parent->RedConflict());
       _InTravse(parent->right_);
@@ -658,7 +849,7 @@ private:
   
   void _PreTravse(Node *parent) {
     if(parent) {
-      cout << parent->key_ << ": " << COLOR_STR(parent) << "   ";
+      cout << parent->Key() << ": " << COLOR_STR(parent) << "   ";
       EXPECT_EQ(_BDiff(parent), 0);
 			EXPECT_FALSE(parent->RedConflict());
       _PreTravse(parent->left_);
@@ -670,30 +861,29 @@ private:
     if(parent) {
 	    _PostTravse(parent->left_);
       _PostTravse(parent->right_);
-	    cout << parent->key_ << " ";
+	    cout << parent->Key() << " ";
       EXPECT_EQ(_BDiff(parent), 0);
 			EXPECT_FALSE(parent->RedConflict());
     }
   }
-
 	Node *_LeftMostNode(Node *parent) {
-		Node *left_most = parent;
 		if(parent->left_) {
-			left_most = _LeftMostNode(parent->left_);
+			return _LeftMostNode(parent->left_);
+		} else {
+		  return parent;
 		}
-		return left_most;
 	}
 	
 	Node *_RightMostNode(Node *parent) {
-		Node *right_most = parent;
 		if(parent->right_) {
-			right_most = _RightMostNode(parent->right_);
+			return _RightMostNode(parent->right_);
+		} else {
+		  return parent;
 		}
-		return right_most;
 	}
-	
+
   Node *_LeftRotate(Node *node) {
-    cout << "_LeftRotate["<<node->key_<<"]" << endl;
+    cout << "_LeftRotate["<<node->Key()<<"]" << endl;
     Node *root = node->right_;
     node->right_ = root->left_;
     root->left_ = node;
@@ -701,7 +891,7 @@ private:
   }
   
   Node *_RightRotate(Node *node) {
-    cout << "_RightRotate["<<node->key_<<"]" << endl;
+    cout << "_RightRotate["<<node->Key()<<"]" << endl;
     Node *root = node->left_;
     node->left_ = root->right_;
     root->right_ = node;
@@ -709,13 +899,13 @@ private:
   }
   
   Node *_LRRotate(Node *node) {
-    cout << "_LRRotate["<<node->key_<<"]" << endl;
+    cout << "_LRRotate["<<node->Key()<<"]" << endl;
     node->left_ = _LeftRotate(node->left_);
     return _RightRotate(node);
   }
   
   Node *_RLRotate(Node *node) {
-    cout << "_RLRotate["<<node->key_<<"]" << endl;
+    cout << "_RLRotate["<<node->Key()<<"]" << endl;
     node->right_ = _RightRotate(node->right_);
     return _LeftRotate(node);
   }
@@ -726,7 +916,7 @@ private:
 	  if(!(parent->left_)&&!(parent->right_)) {
 	    
       black_cnt_.push_back(num + 1);
-      cout << "End point " << parent->key_ << ": " << num + 1 << " black nodes" << endl;
+      cout << "End point " << parent->Key() << ": " << num + 1 << " black nodes" << endl;
     } else{
       if(parent->left_)
 			  _BlackCount(parent->left_, num);
@@ -744,7 +934,8 @@ class RBTree_GTest : public ::testing::Test {
 
 protected:
 	RBTree *rbtree = new RBTree();
-	int leafs_key_[15] = {55, 23, 91, 20, 25, 80, 120, 15, 21, 24, 28, 70, 85, 110, 150};
+	//int leafs_key_[15] = {55, 23, 91, 20, 25, 80, 120, 15, 21, 24, 28, 70, 85, 110, 150};
+	int leafs_key_[6] = {55, 23, 91, 20, 25, 15};
   virtual void SetUp(){
 		cout << "SetUp Tree: " << endl;
 		for(unsigned i = 0; i <(sizeof(leafs_key_)/sizeof(leafs_key_[0])); i ++) {
@@ -762,20 +953,10 @@ protected:
   }
 };
 
-TEST_F(RBTree_GTest, DeleteNode_GTest){
-  int input;
-  do {
-    cout << "Please input node key to delete: " << endl;
-    cin >> input;
-    rbtree->Delete(input);
-    rbtree->TraversePreOrder();
-  }while(1);
-}
-
 
 TEST_F(RBTree_GTest, RandomNode_GTest){
   int val = 0;
-  const int node_num = 50;
+  const int node_num = 10;
   const int node_val_max = 100;
   const int node_val_min = 0;
   RBTree *tree = new RBTree();
@@ -794,6 +975,15 @@ TEST_F(RBTree_GTest, RandomNode_GTest){
   tree->TraverseTopBottom();
 }
 
+TEST_F(RBTree_GTest, DeleteNode_GTest){
+  int input;
+  do {
+    cout << "Please input node key to delete: " << endl;
+    cin >> input;
+    rbtree->Delete(input);
+    rbtree->TraversePreOrder();
+  }while(1);
+}
 
 TEST_F(RBTree_GTest, InsertNode_GTest){
   int input;

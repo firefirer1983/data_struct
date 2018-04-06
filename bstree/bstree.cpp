@@ -170,6 +170,82 @@ public:
 	  return leaf;
 	}
 	
+  bool CopyKey(Node *src) {
+    bool ret = false;
+    if(src) {
+		  key_ = src->key_;
+    }
+		return ret;
+  }
+	
+	Node *RemoveChild(Node *child) {
+	  Node *inherit_child = nullptr;
+		if((child->left_)&&(child->right_)) {
+			cout << "RemoveChild Failed: Child "<< child->key_ << " has two sub children" << endl;
+			assert(0);
+		}
+	  if(child) {
+		  cout << "Remove child: " << child->key_;
+			if(!(child->left_)&&!(child->right_)) {
+				inherit_child = nullptr;
+			} else if(child->left_) {
+				cout << " hookup its left sub child: " <<  child->left_->key_ << endl;
+			  inherit_child = child->left_;
+			} else {
+				cout << " hookup its right sub child: " <<  child->right_->key_ << endl;
+			  inherit_child = child->right_;
+			}
+			cout << endl;
+			delete child;
+	  }
+		return inherit_child;
+	}
+	
+	void RemoveLChild() {
+	  if(left_) {
+			Node *del_node = left_;
+			if((left_->left_)&&(left_->right_)) {
+				cout << "RemoveLChild Failed: Child "<< left_->key_ << " has two sub children" << endl;
+				assert(0);
+			}
+			if(!(left_->left_)&&!(left_->right_)) {
+				cout << key_ << " remove left child: " << left_->key_ << endl;
+				left_ = nullptr;
+			} else if(left_->left_) {
+				cout << key_ << " remove left child: " << left_->key_ << " hookup its left sub child: " <<  left_->left_->key_ << endl;
+			  left_ = left_->left_;
+			} else {
+				cout << key_ << " remove left child: " << left_->key_ << " hookup its right sub child: " <<  left_->right_->key_ << endl;
+			  left_ = left_->right_;
+			}
+			delete del_node;
+	  }
+	}
+	
+	void RemoveRChild() {
+	  if(right_) {
+			Node *del_node = right_;
+			if((right_->left_)&&(right_->right_)) {
+				cout << "RemoveRChild Failed: Child "<< right_->key_ << " has two sub children" << endl;
+				assert(0);
+			}
+			if(!(right_->left_)&&!(right_->right_)) {
+				cout << key_ << " remove right child: " << right_->key_ << endl;
+				right_ = nullptr;
+			} else if(right_->left_) {
+				cout << key_ << " remove right child: " << right_->key_ << " hookup its left sub child: " <<  right_->left_->key_ << endl;
+				right_ = right_->left_;
+			} else {
+				cout << key_ << " remove right child: " << right_->key_ << " hookup its right sub child: " <<  right_->right_->key_ << endl;
+				right_ = right_->right_;
+			}
+			delete del_node;
+	  }
+	}
+	int Key() {
+	  return key_;
+	}
+	
   int key_;
   Node *left_;
   Node *right_;
@@ -202,7 +278,6 @@ public:
   }
   
   bool Delete(int key) {
-    Node *del_node = nullptr;
 		bool ret = false;
     if(!root_) {
       cout << "Delete failed on a empty tree" << endl;
@@ -211,12 +286,13 @@ public:
 		if((key == root_->key_)&&\
 			 (!root_->left_)&&\
 			 (!root_->right_)){
-			 root_ = _Delete(key, root_);
+			 cout << "Delete root_ become an empty tree!" << endl;
+			 delete root_;
+			 root_ = nullptr;
 			 ret = true;
 		} else {
-			del_node = _Delete(key, root_);
-			root_ = del_node;
-			if(del_node)
+			root_ = _Delete(key, root_);
+			if(root_)
 				ret =  true;
 			else
 				ret =  false;
@@ -329,6 +405,72 @@ private:
     return parent;
   }
   
+	Node *_LeftMostNode(Node *parent) {
+		if(parent->left_) {
+			return _LeftMostNode(parent->left_);
+		} else {
+		  return parent;
+		}
+	}
+	
+	Node *_RightMostNode(Node *parent) {
+		if(parent->right_) {
+			return _RightMostNode(parent->right_);
+		} else {
+		  return parent;
+		}
+	}
+#if 1
+  Node *_Delete(int key, Node *parent) {
+    Node *del_node = parent;
+    if(key == parent->key_) {
+      //cout << "Binggo <= " << key << endl;
+      Node *swap_node = nullptr;
+      if(parent->IsLeaf()) { // First delete node is a leaf.
+        cout << parent->key_ << " is a leaf, just del the leaf" << endl;
+        cout << "Del => " << parent->key_ << endl;
+        delete parent;
+			  del_node = nullptr;
+      } else { // First delete node is not leaf, swap delete node
+        if(parent->left_) {
+  			  swap_node = _RightMostNode(parent->left_);
+  				cout << "Right most node: " << swap_node->key_ << " in " << parent->key_ << " left sub tree" << endl;
+  				if(swap_node == parent->left_) {
+  					parent->CopyKey(swap_node);
+  				  parent->left_ = parent->RemoveChild(swap_node);
+  				} else {
+  					cout << "Swap Del =>" << swap_node->Key() << endl;
+  				  parent->CopyKey(swap_node);
+  					parent->left_ = _Delete(parent->Key(), parent->left_);
+  				}
+        } else {
+  				swap_node = _LeftMostNode(parent->right_);
+  				cout << "Left most node: " << swap_node->key_ << " in " << parent->key_ << " right sub tree" << endl;
+  				if(swap_node == parent->right_) {
+  					parent->CopyKey(swap_node);
+  					parent->right_ = parent->RemoveChild(swap_node);
+  				} else {
+  					cout << "Swap Del =>" << swap_node->Key() << endl;
+  					parent->CopyKey(swap_node);
+  					parent->right_ = _Delete(parent->Key(), parent->right_);
+          }
+        }
+        del_node = parent;
+      }
+    } else if(key < parent->key_) {
+      if(parent->left_) {
+        parent->left_ = _Delete(key, parent->left_);
+				del_node = parent;
+      }
+    } else {
+      if(parent->right_) {
+        parent->right_ = _Delete(key, parent->right_);
+				del_node = parent;
+      }
+    }
+    return del_node;
+  }	
+#else
   Node *_Delete(int key, Node *parent) {
     Node *del_node = nullptr;
     if(key == parent->key_) {
@@ -345,6 +487,7 @@ private:
 					swap_node = parent->right_;
 					while(swap_node->left_){
 						swap_parent = swap_node;
+						cout << "new swap_parent: " << swap_parent->key_ << endl;
 						swap_node = swap_node->left_;
 					};
 					cout << "Left most node: " << swap_node->key_ << " in " << parent->key_ << " right sub tree" << endl;
@@ -356,26 +499,9 @@ private:
 					};
 					cout << "Right most node: " << swap_node->key_ << " in " << parent->key_ << " left sub tree" << endl;
 				}
-				if(swap_node->IsLeaf()) {
-					cout << "Swap node is a leaf, just del the swap node: " << swap_node->key_ << endl;
-					if(swap_parent != parent) {
-						parent->key_ = swap_node->key_;
-					} else {
-						swap_parent->key_ = swap_node->key_;
-					}
-					if(swap_parent->left_ == swap_node) {
-						swap_parent->left_ = nullptr;
-					} else {
-						swap_parent->right_ = nullptr;
-					}
-					cout << "Del => " << swap_node->key_ << endl;
-					delete swap_node;
-				} else {
-					cout << "Swap " << parent->key_ << " with " << swap_node->key_ << endl;
-					cout << "Swap to del " << swap_node->key_ << endl;
-					parent->key_ = swap_node->key_;
-					_Delete(swap_node->key_, swap_node);
-				}
+				cout << "Parent: " << parent->key_ << endl;
+				parent->CopyKey(swap_node);
+				swap_parent->RemoveChild(swap_node);
         del_node = parent;
       }
     } else if(key < parent->key_) {
@@ -391,7 +517,7 @@ private:
     }
     return del_node;
   }
-
+#endif
   void _Delete(Node *parent) {
     if(parent->left_) {
       _Delete(parent->left_);
@@ -428,23 +554,6 @@ private:
     }
   }
 
-	Node *_LeftMostNode(Node *parent) {
-		Node *left_most = parent;
-		if(parent->left_) {
-			left_most = _LeftMostNode(parent->left_);
-		}
-		return left_most;
-	}
-	
-	Node *_RightMostNode(Node *parent) {
-		Node *right_most = parent;
-		if(parent->right_) {
-			right_most = _RightMostNode(parent->right_);
-		}
-		return right_most;
-	}
-
-	
   Node *root_;
   queue<Node *> node_queue_;
 };
@@ -476,7 +585,7 @@ TEST_F(BSTree_GTest, RandBox_GTest){
   RandBox *box = new RandBox(100, 0, 101);
   box->Shake(0);
   box->Shake(0);
-  box->Shake(unsigned(time(nullptr)));
+  //box->Shake(unsigned(time(nullptr)));
   
   bool ret = box->GetRand(&rand_val);
   cout << "GetRand:" << endl;
@@ -489,8 +598,8 @@ TEST_F(BSTree_GTest, RandBox_GTest){
 
 TEST_F(BSTree_GTest, RandomNode_GTest){
   int val = 0;
-  const int node_num = 10;
-  const int node_val_max = 100;
+  const int node_num = 1000;
+  const int node_val_max = 1500;
   const int node_val_min = 0;
   BSTree *tree = new BSTree();
   RandBox *rbox = new RandBox(node_num, node_val_min, node_val_max);
@@ -502,23 +611,24 @@ TEST_F(BSTree_GTest, RandomNode_GTest){
     insert_cnt ++;
   }
   EXPECT_EQ(insert_cnt, node_num);
-  tree->TraversePreOrder();
-  tree->TraverseTopBottom();
+  //tree->TraversePreOrder();
   
 
   rbox->Shake(0);
   ret = rbox->GetRand(&val);
   int del_cnt = 0;
   while(ret){
+		cout << "Kill <" << val <<">" << endl;
     EXPECT_TRUE(tree->Delete(val));
+		//tree->TraversePreOrder();
     ret = rbox->GetRand(&val);
     del_cnt ++;
   }
   EXPECT_EQ(del_cnt, node_num);
   EXPECT_TRUE(tree->IsEmpty());
   
-	tree->TraversePreOrder();
-  tree->TraverseTopBottom();
+	//tree->TraversePreOrder();
+  //tree->TraverseTopBottom();
 }
 
 TEST_F(BSTree_GTest, DeleteNode_GTest){

@@ -170,6 +170,38 @@ public:
 	  return leaf;
 	}
 	
+  bool CopyKey(Node *src) {
+    bool ret = false;
+    if(src) {
+			key_ = src->key_;
+			ret = true;
+    }
+		return ret;
+  }
+	
+	void RemoveChild(Node *child) {
+		if((child->left_)&&(child->right_)) {
+			cout << "RemoveChild Failed: Child "<< child->key_ << " has two sub children" << endl;
+			assert(0);
+		}
+	  if(child) {
+			Node *del_node = child;
+			Node **child_ptr = (child == left_?&left_:&right_);
+		  cout << "Remove child: " << child->key_;
+			if(!(child->left_)&&!(child->right_)) {
+				*child_ptr = nullptr;
+			} else if(child->left_) {
+				cout << " hookup its left sub child: " <<  child->left_->key_ << endl;
+			  *child_ptr = child->left_;
+			} else {
+				cout << " hookup its right sub child: " <<  child->right_->key_ << endl;
+			  *child_ptr = child->right_;
+			}
+			cout << endl;
+			delete del_node;
+	  }
+	}
+	
   int key_;
   Node *left_;
   Node *right_;
@@ -369,6 +401,7 @@ private:
 					swap_node = parent->right_;
 					while(swap_node->left_){
 						swap_parent = swap_node;
+						cout << "new swap_parent: " << swap_parent->key_ << endl;
 						swap_node = swap_node->left_;
 					};
 					cout << "Left most node: " << swap_node->key_ << " in " << parent->key_ << " right sub tree" << endl;
@@ -380,26 +413,9 @@ private:
 					};
 					cout << "Right most node: " << swap_node->key_ << " in " << parent->key_ << " left sub tree" << endl;
 				}
-				if(swap_node->IsLeaf()) {
-					cout << "Swap node is a leaf, just del the swap node: " << swap_node->key_ << endl;
-					if(swap_parent != parent) {
-						parent->key_ = swap_node->key_;
-					} else {
-						swap_parent->key_ = swap_node->key_;
-					}
-					if(swap_parent->left_ == swap_node) {
-						swap_parent->left_ = nullptr;
-					} else {
-						swap_parent->right_ = nullptr;
-					}
-					cout << "Del => " << swap_node->key_ << endl;
-					delete swap_node;
-				} else {
-					cout << "Swap " << parent->key_ << " with " << swap_node->key_ << endl;
-					cout << "Swap to del " << swap_node->key_ << endl;
-					parent->key_ = swap_node->key_;
-					_Delete(swap_node->key_, swap_node);
-				}
+				cout << "Parent: " << parent->key_ << endl;
+				parent->CopyKey(swap_node);
+				swap_parent->RemoveChild(swap_node);
         del_node = parent;
       }
     } else if(key < parent->key_) {

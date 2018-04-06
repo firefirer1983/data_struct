@@ -223,7 +223,8 @@ class BST_GTest : public ::testing::Test {
 
 protected:
   BST *tree_;
-  int leafs_key_[15] = {55, 23, 91, 20, 25, 80, 120, 15, 21, 24, 28, 70, 85, 110, 150};
+  //int leafs_key_[15] = {55, 23, 91, 20, 25, 80, 120, 15, 21, 24, 28, 70, 85, 110, 150};
+	int leafs_key_[6] = {55, 23, 91, 20, 25, 15};
   virtual void SetUp(){
 	  tree_ = new BST(new BSTNode(leafs_key_[0]));
 	  for(unsigned int i = 1; i < (sizeof(leafs_key_)/sizeof(leafs_key_[0])); i ++) {
