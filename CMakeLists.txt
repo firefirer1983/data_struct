@@ -17,4 +17,4 @@ add_subdirectory(avltree)
 add_subdirectory(sort/bubble)
 add_subdirectory(sort/insertion)
 add_subdirectory(sort/merge)
-
+add_subdirectory(sort/quick)
