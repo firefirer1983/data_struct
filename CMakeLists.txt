@@ -15,4 +15,6 @@ add_subdirectory(rbtree)
 add_subdirectory(bstree)
 add_subdirectory(avltree)
 add_subdirectory(sort/bubble)
+add_subdirectory(sort/insertion)
+add_subdirectory(sort/merge)
 
