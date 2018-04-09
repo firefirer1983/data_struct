@@ -192,7 +192,7 @@ public:
   
   ~Heap(){
 		if(root_) {
-			_Delete(root_);
+			_DeleteHeap(root_);
 			root_ = nullptr;
 		}
 	};
@@ -260,7 +260,7 @@ public:
     print("Total: %d nodes\n",node_cnt);
   }
 
-  Node *_GetInsertNode(Node *parent) {
+  Node *_GetInsertParent(Node *parent) {
     Node *insert_parent = nullptr;
     node_queue_.push(parent);
     while(!node_queue_.empty()) {
@@ -279,7 +279,8 @@ public:
     return insert_parent;
   }
 
-  Node *_GetTailNode(Node *parent) {
+  Node *_GetDeleteParent(Node *parent) {
+    Node *del_parent = nullptr;
     Node *cur = nullptr;
     node_queue_.push(parent);
     while(!node_queue_.empty()) {
@@ -291,14 +292,31 @@ public:
       if(cur->right_) {
         node_queue_.push(cur->right_);
       }
+			if(cur->right_||cur->left_) {
+				del_parent = cur;
+			}
     }
-    return cur;
+    return del_parent;
   }
   
   int Height(void) {
     int height = 0;
     height = _Height(root_);
     return height;
+  }
+	
+  bool Delete() {
+    if(!root_) {
+			print("Can't delete on a empty heap\n");
+		  return false;
+    }
+		if(root_->IsLeaf()) {
+			delete root_;
+			root_ = nullptr;
+		} else {
+			_Delete(root_);
+		}
+		return true;
   }
 
 private:
@@ -359,38 +377,45 @@ private:
 	}
 	
   void _Insert(int key, Node *parent) {
-    Node *tail = new Node(key);
-    Node *tail_parent = _GetInsertNode(root_);
-    if(tail_parent->left_) {
-      tail_parent->right_ = tail;
+    Node *insert_node = new Node(key);
+    Node *insert_parent = _GetInsertParent(root_);
+    if(insert_parent->left_) {
+      insert_parent->right_ = insert_node;
     } else {
-      tail_parent->left_ = tail;
+      insert_parent->left_ = insert_node;
     }
-    tail->parent_ =  tail_parent;
+    insert_node->parent_ =  insert_parent;
     _BubbleUp(key, parent);
   }
 
-#define MINOR_NODE(child, parent) ((child)?(((child)->Key()<(parent)->Key())?child:parent):parent)
+#define BIGGER_NODE(child, parent) ((child)?(((child)->Key()<(parent)->Key())?child:parent):parent)
   void _BubbleDown(Node *parent) {
-    Node *minor = MINOR_NODE(parent->right_, MINOR_NODE(parent->left_, parent));
-    if(minor!=parent) {
-      parent->SwapKey(minor);
-      _BubbleDown(minor);
+    Node *bigger = BIGGER_NODE(parent->right_, BIGGER_NODE(parent->left_, parent));
+    if(bigger!=parent) {
+      parent->SwapKey(bigger);
+      _BubbleDown(bigger);
     }
   }
 
-  void _Delete(int key, Node *parent) {
-    Node *tail = _GetTailNode(parent);
-    parent->SwapKey(tail);
+  void _Delete(Node *parent) {
+    Node *del_parent = _GetDeleteParent(parent);
+		if(del_parent->right_) {
+		  del_parent->right_->SwapKey(parent);
+			del_parent->right_ = nullptr;
+		} else {
+		  del_parent->left_->SwapKey(parent);
+			del_parent->left_ = nullptr;
+		}
     _BubbleDown(parent);
   }	
+
 	
-  void _Delete(Node *parent) {
+  void _DeleteHeap(Node *parent) {
     if(parent->left_) {
-      _Delete(parent->left_);
+      _DeleteHeap(parent->left_);
     }
     if(parent->right_) {
-      _Delete(parent->right_);
+      _DeleteHeap(parent->right_);
     }
     if(!(parent->left_)&&!(parent->right_)) {
       delete parent;
@@ -453,6 +478,18 @@ TEST_F(Heap_GTest, RandomNode_GTest){
     insert_cnt ++;
   }
   print("Total %d nodes inserted!\n", insert_cnt);
+  rbox->Shake(0);
+  ret = rbox->GetRand(&val);
+  int del_cnt = 0;
+  while(del_cnt<insert_cnt){
+		print("Kill => <%d>\n",val);
+    heap->Delete();
+    heap->TraverseTopBottom();
+    ret = rbox->GetRand(&val);
+    del_cnt ++;
+  }
+  EXPECT_EQ(del_cnt, insert_cnt);
+  EXPECT_TRUE(heap->IsEmpty());
 }
 
 
